@@ -8,6 +8,20 @@ export function num(value: number): string {
   return whole.format(value)
 }
 
+const tenths = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** Whole-day energy can end in .5 (half-hours x 0.5 h): keep it so rows add up exactly. */
+export function numTenths(value: number): string {
+  return tenths.format(value)
+}
+
+/** Signed, to one decimal place, with a real minus sign. */
+export function signedTenths(value: number): string {
+  const rounded = Math.round(Math.abs(value) * 10) / 10
+  if (rounded === 0) return tenths.format(0)
+  return `${value > 0 ? '+' : '\u2212'}${tenths.format(rounded)}`
+}
+
 export function mw(value: number): string {
   return `${whole.format(value)}${NBSP}MW`
 }
@@ -36,6 +50,13 @@ const oneDecimal = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, ma
 
 export function pct(value: number): string {
   return `${oneDecimal.format(value)}%`
+}
+
+/** Percentage with an explicit sign, one decimal place. */
+export function signedPct(value: number): string {
+  const rounded = Math.round(Math.abs(value) * 10) / 10
+  if (rounded === 0) return '0.0%'
+  return `${value > 0 ? '+' : '\u2212'}${oneDecimal.format(rounded)}%`
 }
 
 // The market runs on UK time, so every clock on screen does too.

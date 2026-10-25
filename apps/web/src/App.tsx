@@ -4,6 +4,7 @@ import { Accuracy } from './components/Accuracy.tsx'
 import { Controls } from './components/Controls.tsx'
 import { History } from './components/History.tsx'
 import { Tomorrow } from './components/Tomorrow.tsx'
+import { WholeDaysTable } from './components/WholeDaysTable.tsx'
 import { dayShort, ukDateTime } from './format.ts'
 import { type Choice, GATE_CLOSES, readChoice } from './simulation.ts'
 import { useDecision } from './useDecision.ts'
@@ -63,9 +64,14 @@ export default function App() {
       {state.status === 'ready' && (
         <>
           <main>
-            <Tomorrow tomorrow={state.data.tomorrow} band={state.data.band} />
+            <Tomorrow
+              tomorrow={state.data.tomorrow}
+              band={state.data.band}
+              wholeDays={state.data.whole_days}
+            />
             <section aria-labelledby="accuracy" className={styles.section}>
               <Accuracy windows={state.data.windows} slot={choice.slot} />
+              <WholeDaysTable whole={state.data.whole_days} slot={choice.slot} />
               <History
                 history={state.data.history}
                 windowDays={state.data.windows.map((w) => w.days)}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { Band, Tomorrow as TomorrowData } from '../api/types.gen.ts'
+import type { Band, Tomorrow as TomorrowData, WholeDays } from '../api/types.gen.ts'
 import { dayLong, mw, mwh, num, signed, ukTime } from '../format.ts'
+import { DayRange } from './DayRange.tsx'
 import { ForecastChart } from './ForecastChart.tsx'
 import tables from './Table.module.css'
 import styles from './Tomorrow.module.css'
@@ -28,7 +29,15 @@ function BandCaption({ band }: { band: Band | null }) {
   )
 }
 
-export function Tomorrow({ tomorrow, band }: { tomorrow: TomorrowData; band: Band | null }) {
+export function Tomorrow({
+  tomorrow,
+  band,
+  wholeDays,
+}: {
+  tomorrow: TomorrowData
+  band: Band | null
+  wholeDays: WholeDays
+}) {
   const [view, setView] = useState<(typeof VIEWS)[number]['value']>('chart')
   return (
     <section aria-labelledby="tomorrow" className={styles.section}>
@@ -38,6 +47,7 @@ export function Tomorrow({ tomorrow, band }: { tomorrow: TomorrowData; band: Ban
         <b>{mw(tomorrow.low.mw)}</b> at {ukTime(tomorrow.low.start_time)}, highest{' '}
         <b>{mw(tomorrow.high.mw)}</b> at {ukTime(tomorrow.high.start_time)}.
       </p>
+      <DayRange whole={wholeDays} />
       <div className={styles.head}>
         <span className={styles.what}>Hourly forecast, MW</span>
         <ViewSwitch label="Show tomorrow as" options={VIEWS} value={view} onChange={setView} />

@@ -23,3 +23,5 @@ class Settings(BaseSettings):
     band_window_days: int = 14
     band_lower_pct: float = 10
     band_upper_pct: float = 90
+    # Whole days for the day-total range; it uses the band's percentiles (the same 8 in 10).
+    whole_day_window_days: int = 14

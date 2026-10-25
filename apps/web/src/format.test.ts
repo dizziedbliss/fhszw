@@ -7,8 +7,11 @@ import {
   mw,
   mwh,
   num,
+  numTenths,
   pct,
   signed,
+  signedPct,
+  signedTenths,
   ukDateTime,
   ukDayTime,
   ukTime,
@@ -78,5 +81,30 @@ describe('signed', () => {
     [-949.5, '\u2212950'],
   ])('%s keeps an explicit sign: %s', (value, expected) => {
     expect(signed(value)).toBe(expected)
+  })
+})
+
+describe('signedPct', () => {
+  test.each([
+    [25.323484, '+25.3%'],
+    [-2.100334, '\u22122.1%'],
+  ])('%s reads as %s', (value, expected) => {
+    expect(signedPct(value)).toBe(expected)
+  })
+})
+
+describe('tenths (whole-day MWh, so forecast - actual = miss checks exactly)', () => {
+  test.each([
+    [325376.5, '325,376.5'],
+    [241643, '241,643.0'],
+  ])('numTenths(%s) is %s', (value, expected) => {
+    expect(numTenths(value)).toBe(expected)
+  })
+
+  test.each([
+    [117530.5, '+117,530.5'],
+    [-4774.5, '\u22124,774.5'],
+  ])('signedTenths(%s) is %s', (value, expected) => {
+    expect(signedTenths(value)).toBe(expected)
   })
 })

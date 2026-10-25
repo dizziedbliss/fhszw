@@ -83,9 +83,41 @@ class HistoryPoint(BaseModel):
     miss_mw: int
 
 
+class PastDay(BaseModel):
+    """One complete past day: its energy as forecast (the product) and as metered."""
+
+    day: date
+    forecast_mwh: float
+    actual_mwh: float
+    # Forecast minus actual, signed: over a whole day, highs and lows really do cancel.
+    miss_mwh: float
+    miss_pct: float
+
+
+class WholeDays(BaseModel):
+    window_days: int
+    days: list[PastDay]  # oldest first
+    # Days in the window left out because not every half-hour could be scored.
+    skipped_days: int
+    # None when no day was complete; the % is total miss over total forecast.
+    average_miss_mwh: float | None
+    average_miss_pct: float | None
+    # The middle of the past days' misses (same percentiles as the band), applied to
+    # tomorrow's total: tomorrow_low = total - upper miss, tomorrow_high = total - lower miss.
+    lower_pct: float
+    upper_pct: float
+    lower_miss_mwh: float | None
+    upper_miss_mwh: float | None
+    tomorrow_low_mwh: float | None
+    tomorrow_high_mwh: float | None
+    # True when the low edge would have gone below 0 MWh and was held at 0.
+    clipped_at_zero: bool
+
+
 class DecisionView(BaseModel):
     tomorrow: Tomorrow
     band: Band | None
     windows: list[WindowMetrics]
+    whole_days: WholeDays
     # Every scored half-hour of the longest window, oldest first.
     history: list[HistoryPoint]

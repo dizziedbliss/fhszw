@@ -22,7 +22,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
     - `source.py`: the `Source` protocol (`forecasts(publish_from, publish_to)`, `actuals(settlement_from, settlement_to)`).
     - `elexon.py`: `ElexonSource`, the real Source over the BMRS Insights API. Every failure (network, timeout, non-2xx, bad shape, non-WIND rows) raises `ElexonError`.
     - `barrier.py`: `behind_barrier(source, as_of)` is a bouncer that wraps any Source and refuses rows published after as-of. `build_decision` wraps its source with it as the first step, so unfiltered rows never enter the engine.
-    - `track_record.py`: `TrackRecord` pairs every visible past half-hour with its product forecast (held flat over the hour). `.last(days)` returns a `Window` (scored half-hours, unscored count, days before the sim start). The "last N days" rule lives only here.
+    - `track_record.py`: `TrackRecord` pairs every visible past half-hour with its product forecast (held flat over the hour). `.last(days)` returns a `Window` (scored half-hours, unscored count, days before the sim start). The "last N days" rule lives only here. `.whole_days(n)` returns the last *n* complete local days before today: a day counts only if every half-hour was scored (48, or 46/50 on clock-change days); others are skipped and counted.
     - `scoring.py`: pure formulas (MAE, RMSE, bias, linear percentile, direction agreement).
     - `models.py`: input rows (dataclasses) and the `DecisionView` output (pydantic, becoming the API schema).
     - `settings.py`: every operational value, overridable via `WIND_*` env vars.
@@ -37,9 +37,10 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
   - One screen (`App.tsx`):
     - **Header:** wordmark and the 09:50 gate.
     - **Hero sentence with the two `<select>`s** (`Controls`). The choice lives in the URL (`?today=&slot=`), so links can be shared and Back works.
-    - **`Tomorrow`:** summary sentence, then a Chart ⇄ Table switch (`ForecastChart`, hourly steps plus the band), then the band caption.
+    - **`Tomorrow`:** summary sentence, the **day range** sentence (`DayRange`), then a Chart ⇄ Table switch (`ForecastChart`, hourly steps plus the band), then the band caption.
     - **`Accuracy`:** a 7d | 14d scorecard with each metric's meaning, plus notes on skipped half-hours and December days.
-    - **`History`:** a length switch built from the API's windows, then Chart ⇄ Table (`HistoryChart`, two pens), newest first.
+    - **`WholeDaysTable`:** the 14 whole days behind the day range, newest first. Actual and miss MWh are shown to one decimal place so each row adds up exactly.
+  - **`History`:** a length switch built from the API's windows, then Chart ⇄ Table (`HistoryChart`, two pens), newest first.
     - **Footer:** sources and fetch time.
   - `useDecision` fetches via `api.ts`. Loading is derived, never stored. Errors show the API's sentence plus *Try again*.
   - `format.ts` is the only place numbers, signs and UK times are formatted (Intl, `Europe/London`, non-breaking spaces, real minus sign).
@@ -81,6 +82,8 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - **Track record:** every visible past half-hour with its actual and its product forecast (or none, if that publish is missing). Windows are slices of it.
 - **Window:** the rolling 7 or 14 days of half-hours ending at as-of: `track_record.last(7)`.
 - **Band:** tomorrow's forecast minus the P90/P10 of the last 14 days' misses, i.e. "8 in 10 past half-hours landed in this range".
+- **Whole day:** a complete past local day where every half-hour was scored. Its miss is forecast MWh − actual MWh, *signed* (at day level highs and lows really do cancel).
+- **Day range:** tomorrow's total minus the P90/P10 of the last 14 whole days' misses (the same 8 in 10 as the band), plus the average whole-day miss in MWh and %. It's worded as history, never a promise.
 
 ## Not built (deliberately)
 

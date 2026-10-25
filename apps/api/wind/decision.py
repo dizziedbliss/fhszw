@@ -16,7 +16,9 @@ from wind.models import (
     ForecastRow,
     HistoryPoint,
     HourForecast,
+    PastDay,
     Tomorrow,
+    WholeDays,
     WindowMetrics,
 )
 from wind.settings import Settings
@@ -57,10 +59,12 @@ async def build_decision(
 
     spread = _spread(record.last(settings.band_window_days), settings)
     tomorrow, band = _tomorrow(forecasts, today, slot, as_of, tz, spread)
+    whole_days = _whole_days(record, tomorrow.total_mwh, settings)
     return DecisionView(
         tomorrow=tomorrow,
         band=band,
         windows=[_score(record.last(days), tz) for days in settings.windows_days],
+        whole_days=whole_days,
         history=_history(record.last(max(settings.windows_days))),
     )
 
@@ -150,6 +154,40 @@ def _tomorrow(
         )
     )
     return tomorrow, band
+
+
+def _whole_days(record: TrackRecord, tomorrow_mwh: float, settings: Settings) -> WholeDays:
+    days, skipped = record.whole_days(settings.whole_day_window_days)
+    past = [
+        PastDay(
+            day=d.day,
+            forecast_mwh=d.forecast_mwh,
+            actual_mwh=d.actual_mwh,
+            miss_mwh=d.forecast_mwh - d.actual_mwh,
+            miss_pct=100 * (d.forecast_mwh - d.actual_mwh) / d.forecast_mwh,
+        )
+        for d in days
+    ]
+    misses = [p.miss_mwh for p in past]
+    forecast_total = sum(p.forecast_mwh for p in past)
+    lower = scoring.percentile(misses, settings.band_lower_pct) if misses else None
+    upper = scoring.percentile(misses, settings.band_upper_pct) if misses else None
+    raw_low = None if upper is None else tomorrow_mwh - upper
+    return WholeDays(
+        window_days=settings.whole_day_window_days,
+        days=past,
+        skipped_days=skipped,
+        average_miss_mwh=scoring.bias(misses) if misses else None,
+        average_miss_pct=100 * sum(misses) / forecast_total if misses else None,
+        lower_pct=settings.band_lower_pct,
+        upper_pct=settings.band_upper_pct,
+        lower_miss_mwh=lower,
+        upper_miss_mwh=upper,
+        # A day can't generate negative energy: hold the edges at 0 and say so.
+        tomorrow_low_mwh=None if raw_low is None else max(0.0, raw_low),
+        tomorrow_high_mwh=None if lower is None else max(0.0, tomorrow_mwh - lower),
+        clipped_at_zero=raw_low is not None and raw_low < 0,
+    )
 
 
 def _score(window: Window, tz: ZoneInfo) -> WindowMetrics:
