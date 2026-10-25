@@ -9,7 +9,7 @@ A January 2026 simulation of the 09:30 read before the GB day-ahead gate (09:50)
 - Without Docker: `cd apps/api && uv sync && uv run fastapi dev`, and `cd apps/web && npm ci && npm run dev`.
 - `make check`: ruff, ruff format, pyright, pytest (including one **live Elexon** test, so it needs the internet), a check that the generated TS types match the API, oxlint, tsc, vitest, vite build. A stage is done only when this passes. Offline: `cd apps/api && uv run pytest -m "not live"`.
 - `make smoke`: builds and starts the production images (`docker compose --profile prod`, web on http://localhost:8080), runs the Playwright smoke test (`apps/web/e2e/`, live Elexon data), then tears down.
-- `make smoke-url SMOKE_URL=https://…`: the same smoke test against any deployment. Set `VERCEL_AUTOMATION_BYPASS_SECRET` to get past Vercel preview protection.
+- `make smoke-url SMOKE_URL=https://…`: the same smoke test against any deployment. For a protected Vercel preview, run it from the repo root through `npx vercel@65.2.0 env run -- make smoke-url SMOKE_URL=https://…`, which injects the short-lived `VERCEL_OIDC_TOKEN`; Playwright sends it as `x-vercel-trusted-oidc-idp-token`. For API checks on a preview, use `npx vercel@65.2.0 curl <url>`.
 - `make api-types`: regenerate `apps/web/src/api/` from the API's OpenAPI schema. Run it after changing any response model.
 - `cd apps/api && uv run python -m wind.cli 2026-01-15 09:30`: the engine's full answer as JSON (live Elexon).
 - Release (manual): `npx vercel@65.2.0 deploy` (preview), check it, then `npx vercel@65.2.0 deploy --prod`, then `make smoke-url SMOKE_URL=https://wind-day-ahead.vercel.app`.
@@ -78,7 +78,6 @@ A January 2026 simulation of the 09:30 read before the GB day-ahead gate (09:50)
 - **Live:** https://wind-day-ahead.vercel.app (Vercel project `dizziedbliss/wind-day-ahead`, production).
   - Deploys are **manual only**: the GitHub repo is deliberately *disconnected*, so pushes and merges deploy nothing.
   - `.vercel/` and `.env.local` (Vercel OIDC token) are local and gitignored.
-  - The `/assets/*` immutable cache rule is in `vercel.json` but takes effect only on the next production deploy.
 
 ## Conventions
 
