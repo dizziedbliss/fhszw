@@ -3,6 +3,7 @@
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 
+from wind.elexon import ElexonError
 from wind.models import ActualRow, ForecastRow
 
 type MwRule = int | Callable[[datetime], int]
@@ -43,6 +44,16 @@ def metered(first: datetime, half_hours: int, mw: MwRule) -> list[ActualRow]:
     return rows
 
 
+def slot_publishes(
+    days: range, hour: int = 9, minute: int = 30, mw: int = 1000
+) -> list[ForecastRow]:
+    """The given slot's publish on each day, each spanning 21:00 the day before -> +72h."""
+    rows: list[ForecastRow] = []
+    for d in days:
+        rows += publish(at(d, hour, minute), first=at(d - 1, 21), hours=73, mw=mw)
+    return rows
+
+
 class FakeSource:
     """In-memory Elexon. Ignores the requested ranges on purpose: like the real
     historical API, it can hand over rows the decision maker couldn't have seen yet."""
@@ -58,3 +69,16 @@ class FakeSource:
 
     async def actuals(self, settlement_from: date, settlement_to: date) -> list[ActualRow]:
         return self._actuals
+
+
+class FailingSource:
+    """An Elexon that is down: every call raises ElexonError."""
+
+    def __init__(self, reason: str = "simulated outage") -> None:
+        self._reason = reason
+
+    async def forecasts(self, publish_from: datetime, publish_to: datetime) -> list[ForecastRow]:
+        raise ElexonError(self._reason)
+
+    async def actuals(self, settlement_from: date, settlement_to: date) -> list[ActualRow]:
+        raise ElexonError(self._reason)
