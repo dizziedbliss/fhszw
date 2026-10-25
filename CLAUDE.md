@@ -8,13 +8,23 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - `make check`: ruff, ruff format, pyright, pytest, oxlint, tsc, vitest, vite build. A stage is done only when this passes.
 - `make dev`: `docker compose --profile dev up`. Web at http://localhost:5173, API at http://localhost:8000/api/docs.
 - Without Docker: `cd apps/api && uv run fastapi dev` and `cd apps/web && npm run dev`.
+- Engine from the terminal (live Elexon): `cd apps/api && uv run python -m wind.cli 2026-01-15 09:30` prints the full decision view as JSON.
 
 ## Architecture
 
 - `apps/api`: FastAPI on Python 3.14, managed by uv (`uv.lock`).
   - `main.py` holds `app` (the entrypoint is declared in `pyproject.toml` under `[tool.fastapi]`).
   - Every route lives under `/api`, including `/api/openapi.json` and `/api/docs`, because Vercel forwards `/api/*` with the prefix intact.
-  - `wind/` is the domain package (empty so far). Tests are in `tests/`.
+  - `wind/` is the domain package. Its one front door is `decision.build_decision(today, slot, source, settings) -> DecisionView`, and callers never see what's behind it:
+    - `source.py`: the `Source` protocol (`forecasts(publish_from, publish_to)`, `actuals(settlement_from, settlement_to)`).
+    - `elexon.py`: `ElexonSource`, the real Source over the BMRS Insights API. Every failure (network, timeout, non-2xx, bad shape, non-WIND rows) raises `ElexonError`.
+    - `barrier.py`: `visible_at(as_of, …)` drops anything published after as-of. It's the only path rows take into the engine.
+    - `scoring.py`: pure formulas (MAE, RMSE, bias, linear percentile, direction agreement).
+    - `models.py`: input rows (dataclasses) and the `DecisionView` output (pydantic, becoming the API schema).
+    - `settings.py`: every operational value, overridable via `WIND_*` env vars.
+    - `cli.py`: prints `DecisionView` JSON for a day and slot.
+    - No HTTP endpoints exist yet beyond the OpenAPI docs.
+  - Tests are in `tests/`. Agreed seams: `build_decision` (with `FakeSource`), `ElexonSource` (with httpx `MockTransport`), `scoring` (pure), and a golden test running recorded real Elexon data (`tests/fixtures/`) through both, against numbers from an independent script.
 - `apps/web`: Vite + React 19 + TypeScript.
   - It currently renders a heading only.
   - The dev server binds `0.0.0.0:5173` and proxies `/api` to `API_PROXY_TARGET` (default `http://localhost:8000`; in compose, `http://api-dev:8000`).
