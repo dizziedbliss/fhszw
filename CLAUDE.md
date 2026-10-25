@@ -8,6 +8,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - `make check`: ruff, ruff format, pyright, pytest (including one **live Elexon** test, so it needs the internet), a check that the generated TS types match the API, oxlint, tsc, vitest, vite build. A stage is done only when this passes. Offline: `cd apps/api && uv run pytest -m "not live"`.
 - `make smoke`: builds and starts the production images (`docker compose --profile prod`, web on http://localhost:8080), runs the Playwright smoke test (`apps/web/e2e/`, live Elexon data), then tears down.
 - `make smoke-url SMOKE_URL=https://…`: the same smoke test against any deployment. Set `VERCEL_AUTOMATION_BYPASS_SECRET` to get past Vercel preview protection.
+- `npx vercel@65.2.0 deploy` / `deploy --prod`: manual release (see Architecture → Live). After a prod deploy, run `make smoke-url SMOKE_URL=https://wind-day-ahead.vercel.app`.
 - `make api-types`: regenerate `apps/web/src/api/` from the API's OpenAPI schema. Run it after changing any response model.
 - `make dev`: `docker compose --profile dev up`. Web at http://localhost:5173, API at http://localhost:8000/api/docs.
 - Without Docker: `cd apps/api && uv run fastapi dev` and `cd apps/web && npm run dev`.
@@ -57,7 +58,11 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
   - `apps/api/Dockerfile`: uv build stage, then the locked venv on `python:3.14.9-slim-trixie` with uvicorn, uid 10001.
   - `apps/web/Dockerfile`: node build, then `nginx-unprivileged:1.31.7-alpine3.24` (uid 101).
   - `apps/web/nginx.conf`: serves the SPA (deep links fall back to `index.html`, which is `no-cache`), proxies `/api/` to the api, and caches `/assets/` for a year.
-- **`vercel.json`** uses Vercel Services: `web` (Vite, `npm ci`, SPA rewrite) and `api` (`entrypoint: main:app`). Top-level rewrites send `/api/(.*)` → api and everything else → web. `.vercelignore` keeps local envs and tests out of uploads. **Not deployed yet.**
+- **`vercel.json`** uses Vercel Services: `web` (Vite, `npm ci`, SPA rewrite) and `api` (`entrypoint: main:app`). Top-level rewrites send `/api/(.*)` → api and everything else → web. `.vercelignore` keeps local envs and tests out of uploads.
+- **Live:** https://wind-day-ahead.vercel.app (Vercel project `dizziedbliss/wind-day-ahead`, production).
+  - Deploys are **manual only**: the GitHub repo is deliberately *disconnected*, so pushes and merges deploy nothing.
+  - Release flow: `npx vercel@65.2.0 deploy` (a preview, behind Vercel login), then the checks, then `npx vercel@65.2.0 deploy --prod`.
+  - `.vercel/` and `.env.local` (Vercel OIDC token) are local and gitignored.
 
 ## Conventions
 
