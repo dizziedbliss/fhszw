@@ -235,3 +235,89 @@ async def test_each_window_says_how_many_of_its_days_fall_before_the_simulation_
 
     # 1 day back from Jan 2 09:30 starts Jan 1; 3 days back starts Dec 30 (Dec 30 + 31).
     assert [w.days_before_sim_start for w in view.windows] == [0, 2]
+
+
+WHOLE_DAYS = Settings(windows_days=(1,), band_window_days=1, whole_day_window_days=2)
+
+
+async def test_whole_days_are_the_last_complete_days_with_their_signed_energy_miss() -> None:
+    # Forecast 1000 MW every hour -> 24,000 MWh a day. Today's partial morning must not count.
+    actuals = (
+        metered(at(13), 48, 900)  # 21,600 MWh -> miss +2,400 (+10%)
+        + metered(at(14), 48, 1100)  # 26,400 MWh -> miss -2,400 (-10%)
+        + metered(at(15), 19, 1000)  # this morning, up to 09:00: not a whole day
+    )
+    source = FakeSource(slot_publishes(range(12, 16)), actuals)
+
+    view = await build_decision(date(2026, 1, 15), time(9, 30), source, WHOLE_DAYS)
+
+    assert [
+        (d.day, d.forecast_mwh, d.actual_mwh, d.miss_mwh, d.miss_pct) for d in view.whole_days.days
+    ] == [
+        (date(2026, 1, 13), 24_000, 21_600, 2_400, 10),
+        (date(2026, 1, 14), 24_000, 26_400, -2_400, -10),
+    ]
+
+
+def two_days_missing_by(jan13_actual_mw: int, jan14_actual_mw: int) -> FakeSource:
+    actuals = metered(at(13), 48, jan13_actual_mw) + metered(at(14), 48, jan14_actual_mw)
+    return FakeSource(slot_publishes(range(12, 16)), actuals)
+
+
+async def test_whole_days_report_their_average_miss_in_mwh_and_as_a_share_of_forecast() -> None:
+    # Misses +2,400 and +1,200 MWh on 24,000 MWh days: average +1,800; 3,600 / 48,000 = 7.5%
+    source = two_days_missing_by(900, 950)
+
+    view = await build_decision(date(2026, 1, 15), time(9, 30), source, WHOLE_DAYS)
+
+    assert (view.whole_days.average_miss_mwh, view.whole_days.average_miss_pct) == (1_800, 7.5)
+
+
+async def test_eight_in_ten_of_the_past_day_misses_applied_to_tomorrows_total() -> None:
+    # Misses 1,200 and 2,400: P10 = 1,320, P90 = 2,280. Tomorrow's forecast is 24,000 MWh.
+    view = await build_decision(
+        date(2026, 1, 15), time(9, 30), two_days_missing_by(900, 950), WHOLE_DAYS
+    )
+
+    days = view.whole_days
+    assert (days.lower_pct, days.upper_pct) == (10, 90)
+    assert (days.lower_miss_mwh, days.upper_miss_mwh) == pytest.approx((1_320, 2_280))
+    assert (days.tomorrow_low_mwh, days.tomorrow_high_mwh) == pytest.approx((21_720, 22_680))
+    assert days.clipped_at_zero is False
+
+
+async def test_a_day_missing_any_half_hour_is_left_out_of_whole_days_and_counted() -> None:
+    # Jan 13 is one half-hour short (47 of 48 metered), so it can't be a whole day.
+    actuals = metered(at(13), 47, 900) + metered(at(14), 48, 1100)
+    source = FakeSource(slot_publishes(range(12, 16)), actuals)
+
+    view = await build_decision(date(2026, 1, 15), time(9, 30), source, WHOLE_DAYS)
+
+    assert [d.day for d in view.whole_days.days] == [date(2026, 1, 14)]
+    assert view.whole_days.skipped_days == 1
+
+
+async def test_with_no_whole_days_there_is_no_range_rather_than_a_made_up_one() -> None:
+    source = FakeSource(slot_publishes(range(12, 16)), metered(at(15), 19, 1000))
+
+    view = await build_decision(date(2026, 1, 15), time(9, 30), source, WHOLE_DAYS)
+
+    days = view.whole_days
+    assert (days.days, days.skipped_days, days.average_miss_mwh, days.tomorrow_low_mwh) == (
+        [],
+        2,
+        None,
+        None,
+    )
+
+
+async def test_the_day_range_never_goes_below_zero_energy_and_says_when_it_was_held() -> None:
+    # Tomorrow is a calm 50 MW all day (1,200 MWh), but past days missed by ~2,000 MWh.
+    forecasts = slot_publishes(range(12, 15)) + publish(at(15, 9, 30), at(14, 21), 73, 50)
+    actuals = metered(at(13), 48, 900) + metered(at(14), 48, 950)
+    view = await build_decision(
+        date(2026, 1, 15), time(9, 30), FakeSource(forecasts, actuals), WHOLE_DAYS
+    )
+
+    assert view.whole_days.tomorrow_low_mwh == 0
+    assert view.whole_days.clipped_at_zero is True

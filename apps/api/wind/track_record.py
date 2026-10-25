@@ -4,6 +4,7 @@ Windows are slices of it (`track_record.last(7)`), so the "last N days" rule liv
 here and nowhere else.
 """
 
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
@@ -23,6 +24,15 @@ class ScoredHalfHour:
     @property
     def miss_mw(self) -> int:
         return self.forecast_mw - self.actual_mw
+
+
+@dataclass(frozen=True)
+class WholeDay:
+    """A complete local day: every one of its half-hours was scored."""
+
+    day: date
+    forecast_mwh: float
+    actual_mwh: float
 
 
 @dataclass(frozen=True)
@@ -67,6 +77,38 @@ class TrackRecord:
             unscored=sum(1 for t in self._unscored if inside(t)),
             days_before_sim_start=max(0, (self._sim_first_day - first_day).days),
         )
+
+    def whole_days(self, count: int) -> tuple[tuple[WholeDay, ...], int]:
+        """The `count` local days before as-of's day, oldest first, keeping only days
+        where every half-hour was scored; also returns how many were skipped."""
+        by_day: defaultdict[date, list[ScoredHalfHour]] = defaultdict(list)
+        for s in self._scored:
+            by_day[s.start_time.astimezone(self._tz).date()].append(s)
+        today = self._as_of.astimezone(self._tz).date()
+        days: list[WholeDay] = []
+        skipped = 0
+        for back in range(count, 0, -1):
+            day = today - timedelta(days=back)
+            halves = by_day.get(day, [])
+            if len(halves) != _half_hours_in(day, self._tz):
+                skipped += 1
+                continue
+            # Each half-hour is average MW over 30 minutes: MW x 0.5 h = MWh.
+            days.append(
+                WholeDay(
+                    day=day,
+                    forecast_mwh=sum(s.forecast_mw for s in halves) * 0.5,
+                    actual_mwh=sum(s.actual_mw for s in halves) * 0.5,
+                )
+            )
+        return tuple(days), skipped
+
+
+def _half_hours_in(day: date, tz: ZoneInfo) -> int:
+    """48, or 46 / 50 on clock-change days: counted in UTC so the clocks can't fool it."""
+    start = datetime.combine(day, time(0), tzinfo=tz).astimezone(UTC)
+    end = datetime.combine(day + timedelta(days=1), time(0), tzinfo=tz).astimezone(UTC)
+    return (end - start) // timedelta(minutes=30)
 
 
 def _pair_with_product(

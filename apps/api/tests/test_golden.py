@@ -77,3 +77,20 @@ async def test_jan15_band_matches_the_answer_key(jan15: DecisionView) -> None:
     noon = next(h for h in jan15.tomorrow.hours if h.start_time == at(16, 12))
     assert noon.forecast_mw == 7_802
     assert (noon.band_low_mw, noon.band_high_mw) == pytest.approx((3310.5, 8751.5), abs=1e-6)
+
+
+async def test_jan15_whole_days_match_the_answer_key(jan15: DecisionView) -> None:
+    days = jan15.whole_days
+    assert (days.days[0].day, days.days[-1].day) == (date(2026, 1, 1), date(2026, 1, 14))
+    assert (len(days.days), days.skipped_days) == (14, 0)
+    jan11 = next(d for d in days.days if d.day == date(2026, 1, 11))
+    assert (jan11.forecast_mwh, jan11.actual_mwh, jan11.miss_mwh) == (442_907, 325_376.5, 117_530.5)
+    assert (days.average_miss_mwh, days.average_miss_pct) == pytest.approx(
+        (43_398.142857, 13.516425), abs=1e-5
+    )
+    assert (days.lower_miss_mwh, days.upper_miss_mwh) == pytest.approx(
+        (-1_227.5, 112_930.45), abs=1e-6
+    )
+    assert (days.tomorrow_low_mwh, days.tomorrow_high_mwh) == pytest.approx(
+        (78_471.55, 192_629.5), abs=1e-6
+    )

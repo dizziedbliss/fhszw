@@ -239,3 +239,64 @@ test('an error without an explanation still tells him what happened and what to 
     'The server didn’t give an answer (error 504). Try again in a minute.',
   )
 })
+
+const daySentence = () => screen.findByText(/Over the last 14 whole days/)
+
+test('tomorrow gets a whole-day range, built from the last 14 whole days', async () => {
+  fakeApi()
+  render(<App />)
+
+  expect(await daySentence()).toHaveTextContent(
+    'Over the last 14 whole days, the day’s forecast ran 43,398 MWh (13.5%) above what came, on average. 8 in 10 of those days’ misses, applied to tomorrow, would put it between 78,472 and 192,630 MWh. A single day can still fall outside it.',
+  )
+})
+
+test('the whole-day sentence says when the forecast ran low, and when the range hit zero', async () => {
+  const whole = JAN15.whole_days
+  fakeApi(() => ({
+    status: 200,
+    body: { ...JAN15, whole_days: { ...whole, average_miss_mwh: -2000, average_miss_pct: -1.04, tomorrow_low_mwh: 0, clipped_at_zero: true } },
+  }))
+  render(<App />)
+
+  const sentence = await daySentence()
+  expect(sentence).toHaveTextContent('ran 2,000 MWh (1.0%) below what came, on average')
+  expect(sentence).toHaveTextContent('between 0 and 192,630 MWh (the low end is held at 0 MWh)')
+})
+
+test('with no whole past days there is no day range, and the page says so', async () => {
+  const whole = JAN15.whole_days
+  fakeApi(() => ({
+    status: 200,
+    body: {
+      ...JAN15,
+      whole_days: { ...whole, days: [], skipped_days: 14, average_miss_mwh: null, average_miss_pct: null, lower_miss_mwh: null, upper_miss_mwh: null, tomorrow_low_mwh: null, tomorrow_high_mwh: null },
+    },
+  }))
+  render(<App />)
+
+  expect(await screen.findByText(/No whole past days to compare yet/)).toBeInTheDocument()
+  expect(screen.queryByText(/Over the last 14 whole days/)).not.toBeInTheDocument()
+  expect(screen.getByText(/14 of the last 14 days were skipped/)).toBeInTheDocument()
+})
+
+test('the whole days behind the range are listed, newest first', async () => {
+  fakeApi()
+  render(<App />)
+
+  const table = await screen.findByRole('table', { name: 'Whole days, last 14 days' })
+  const rows = within(table).getAllByRole('row').slice(1)
+  expect(rows).toHaveLength(14)
+  // 14 Jan: forecast 227,321; actual 232,095.5; miss -4,774.5 (-2.1%). Tenths, so rows add up.
+  expect(cells(rows[0])).toEqual(['Wed 14 Jan', '227,321', '232,095.5', '\u22124,774.5', '\u22122.1%'])
+  expect(cells(rows.at(-1))[0]).toBe('Thu 1 Jan')
+})
+
+test('when days were skipped, the sentence says how many whole days it really used', async () => {
+  const whole = JAN15.whole_days
+  fakeApi(() => ({ status: 200, body: { ...JAN15, whole_days: { ...whole, days: whole.days.slice(2), skipped_days: 2 } } }))
+  render(<App />)
+
+  expect(await screen.findByText(/Over 12 whole days from the last 14/)).toBeInTheDocument()
+  expect(screen.getByText(/2 of the last 14 days were skipped/)).toBeInTheDocument()
+})

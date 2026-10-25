@@ -50,6 +50,7 @@ export type DecisionResponse = {
      * Windows
      */
     windows: Array<WindowMetrics>;
+    whole_days: WholeDays;
     /**
      * History
      */
@@ -149,6 +150,34 @@ export type HourForecast = {
 };
 
 /**
+ * PastDay
+ *
+ * One complete past day: its energy as forecast (the product) and as metered.
+ */
+export type PastDay = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Forecast Mwh
+     */
+    forecast_mwh: number;
+    /**
+     * Actual Mwh
+     */
+    actual_mwh: number;
+    /**
+     * Miss Mwh
+     */
+    miss_mwh: number;
+    /**
+     * Miss Pct
+     */
+    miss_pct: number;
+};
+
+/**
  * Tomorrow
  */
 export type Tomorrow = {
@@ -170,6 +199,60 @@ export type Tomorrow = {
     total_mwh: number;
     low: Extreme;
     high: Extreme;
+};
+
+/**
+ * WholeDays
+ */
+export type WholeDays = {
+    /**
+     * Window Days
+     */
+    window_days: number;
+    /**
+     * Days
+     */
+    days: Array<PastDay>;
+    /**
+     * Skipped Days
+     */
+    skipped_days: number;
+    /**
+     * Average Miss Mwh
+     */
+    average_miss_mwh: number | null;
+    /**
+     * Average Miss Pct
+     */
+    average_miss_pct: number | null;
+    /**
+     * Lower Pct
+     */
+    lower_pct: number;
+    /**
+     * Upper Pct
+     */
+    upper_pct: number;
+    /**
+     * Lower Miss Mwh
+     */
+    lower_miss_mwh: number | null;
+    /**
+     * Upper Miss Mwh
+     */
+    upper_miss_mwh: number | null;
+    /**
+     * Tomorrow Low Mwh
+     */
+    tomorrow_low_mwh: number | null;
+    /**
+     * Tomorrow High Mwh
+     */
+    tomorrow_high_mwh: number | null;
+    /**
+     * Clipped At Zero
+     */
+    clipped_at_zero: boolean;
 };
 
 /**
