@@ -1,6 +1,7 @@
-# Local development: `make dev` (docker compose --profile dev up).
-# Source is bind-mounted for hot reload; dependencies live in named volumes
-# so the container's Linux packages never mix with the host's.
+# Two profiles:
+#   dev  (`make dev`):   hot reload. Source is bind-mounted; dependencies live in named
+#                        volumes so the container's Linux packages never mix with the host's.
+#   prod (`make smoke`): the production images, web on http://localhost:8080.
 services:
   api-dev:
     profiles: [dev]
@@ -30,6 +31,31 @@ services:
       - "5173:5173"
     depends_on:
       - api-dev
+
+  api:
+    profiles: [prod]
+    build: ./apps/api
+    # Liveness only: /api/health calls Elexon, and an Elexon hiccup shouldn't mark us dead.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/openapi.json', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  web:
+    profiles: [prod]
+    build: ./apps/web
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
 volumes:
   api-venv:

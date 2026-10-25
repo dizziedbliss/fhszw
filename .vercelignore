@@ -1,0 +1,10 @@
+# Never upload local environments, builds or test output to Vercel.
+**/node_modules
+**/.venv
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+apps/web/test-results
+apps/web/playwright-report
+apps/api/tests

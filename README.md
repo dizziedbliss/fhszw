@@ -7,6 +7,7 @@ Tomorrow's GB wind forecast as it looked at 09:30, and how accurate that same fo
 ```sh
 make dev      # docker compose: web on :5173, API on :8000
 make check    # lint, types, tests, build
+make smoke    # production images + a real browser test on :8080
 ```
 
 See `CLAUDE.md` for architecture and conventions.
