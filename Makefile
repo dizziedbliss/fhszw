@@ -1,4 +1,4 @@
-.PHONY: install check api-check web-check api-types api-types-check dev
+.PHONY: install check api-check web-check api-types api-types-check dev smoke smoke-url
 
 install:
 	cd apps/api && uv sync --frozen
@@ -37,3 +37,13 @@ api-types-check:
 
 dev:
 	docker compose --profile dev up
+
+# Real browser against the production images on http://localhost:8080 (live Elexon data).
+smoke:
+	docker compose --profile prod up -d --build --wait
+	cd apps/web && npm run smoke; status=$$?; cd ../.. && docker compose --profile prod down; exit $$status
+
+# Same test against any deployment: make smoke-url SMOKE_URL=https://...
+smoke-url:
+	@test -n "$(SMOKE_URL)" || (echo "set SMOKE_URL=https://..." && exit 1)
+	cd apps/web && SMOKE_URL=$(SMOKE_URL) npm run smoke

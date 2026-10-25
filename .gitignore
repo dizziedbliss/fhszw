@@ -11,6 +11,10 @@ dist/
 *.local
 *.log
 
+# Playwright
+test-results/
+playwright-report/
+
 # Env and platform
 .env
 .env.*

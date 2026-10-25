@@ -14,6 +14,8 @@ export default defineConfig({
     proxy: { '/api': apiTarget },
   },
   test: {
+    // Unit and page tests only; e2e/ belongs to Playwright.
+    include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
   },
