@@ -1,0 +1,19 @@
+.frame {
+  font-variant-numeric: tabular-nums;
+}
+
+.tip {
+  background: var(--page);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--ink);
+}
+
+.tip p {
+  margin: 0;
+}
+
+.tipTitle {
+  font-weight: 700;
+}

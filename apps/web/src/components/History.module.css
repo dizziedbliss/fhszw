@@ -1,0 +1,41 @@
+.title {
+  font-size: var(--step-1);
+  margin: var(--space-4) 0 var(--space-1);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+
+.legend {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend svg {
+  width: 2rem;
+  height: 0.6rem;
+  flex: none;
+}
+
+.switches {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.words {
+  color: var(--ink-2);
+}
