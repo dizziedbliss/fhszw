@@ -1,0 +1,35 @@
+/* Pieces several sections share. */
+
+.section {
+  padding-bottom: var(--space-5);
+}
+
+.subhead {
+  font-size: var(--step-1);
+  margin: var(--space-4) 0 var(--space-1);
+}
+
+/* A heading-ish line with its switches on the right. */
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+
+.note {
+  color: var(--ink-2);
+  margin: var(--space-2) 0 0;
+}
+
+/* Read by screen readers, invisible on screen. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

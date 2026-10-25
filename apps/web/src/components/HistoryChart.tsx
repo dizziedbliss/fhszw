@@ -9,9 +9,10 @@ import {
   YAxis,
 } from 'recharts'
 import type { HistoryPoint } from '../api/types.gen.ts'
-import { dayTick, miss, mw, num, ukDayTime, ukTime } from '../format.ts'
+import { dayTick, miss, mw, ukDayTime, ukTime } from '../format.ts'
 import { useNarrow } from '../useNarrow.ts'
 import styles from './Chart.module.css'
+import { AXIS, CURSOR, GRID, MARGIN, PENS, STEPS, Y_AXIS } from './chartStyle.ts'
 
 type Point = { t: number; at: string; forecast: number; actual: number; miss: number; end: boolean }
 
@@ -63,8 +64,8 @@ export function HistoryChart({ history, days }: { history: readonly HistoryPoint
   return (
     <div className={styles.frame}>
       <ResponsiveContainer width="100%" height={narrow ? 220 : 280}>
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid fill="var(--paper)" stroke="var(--grid)" />
+        <LineChart data={points} margin={MARGIN}>
+          <CartesianGrid {...GRID} />
           <XAxis
             dataKey="t"
             type="number"
@@ -72,37 +73,12 @@ export function HistoryChart({ history, days }: { history: readonly HistoryPoint
             domain={['dataMin', 'dataMax']}
             ticks={ticks}
             tickFormatter={(t: number) => dayOf.get(t) ?? ''}
-            stroke="var(--grid-major)"
-            tick={{ fill: 'var(--ink-2)', fontSize: 14 }}
+            {...AXIS}
           />
-          <YAxis
-            width={60}
-            domain={[0, top]}
-            ticks={mwTicks}
-            tickFormatter={num}
-            stroke="var(--grid-major)"
-            tick={{ fill: 'var(--ink-2)', fontSize: 14 }}
-          />
-          <Tooltip content={Tip} cursor={{ stroke: 'var(--ink-2)', strokeDasharray: '3 3' }} />
-          <Line
-            dataKey="actual"
-            type="stepAfter"
-            stroke="var(--pen-actual)"
-            strokeWidth={2}
-            strokeDasharray="5 3"
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
-          <Line
-            dataKey="forecast"
-            type="stepAfter"
-            stroke="var(--pen-forecast)"
-            strokeWidth={2}
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
+          <YAxis {...Y_AXIS} domain={[0, top]} ticks={mwTicks} />
+          <Tooltip content={Tip} cursor={CURSOR} />
+          <Line dataKey="actual" {...STEPS} {...PENS.actual} />
+          <Line dataKey="forecast" {...STEPS} {...PENS.forecast} />
         </LineChart>
       </ResponsiveContainer>
     </div>

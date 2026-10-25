@@ -1,5 +1,5 @@
 import type { WholeDays } from '../api/types.gen.ts'
-import { mwh, num, pct } from '../format.ts'
+import { inTen, lean, mwh, num, pct } from '../format.ts'
 import styles from './Tomorrow.module.css'
 
 /** The whole-day view: how far past days' totals missed, applied to tomorrow's total.
@@ -19,23 +19,22 @@ export function DayRange({ whole }: { whole: WholeDays }) {
     used === whole.window_days
       ? `Over the last ${used} whole days`
       : `Over ${used} whole days from the last ${whole.window_days}`
-  const rounded = Math.round(avg)
-  const share = Math.round((whole.upper_pct - whole.lower_pct) / 10)
+  const direction = lean(avg)
   return (
     <p className={styles.lead}>
       {over}, the day&rsquo;s forecast{' '}
-      {rounded === 0 ? (
+      {direction === 0 ? (
         <>matched what came, on average</>
       ) : (
         <>
           ran{' '}
           <mark>
-            {mwh(Math.abs(avg))} ({pct(Math.abs(avgPct))}) {rounded > 0 ? 'above' : 'below'}
+            {mwh(Math.abs(avg))} ({pct(Math.abs(avgPct))}) {direction > 0 ? 'above' : 'below'}
           </mark>{' '}
           what came, on average
         </>
       )}
-      . {share} in 10 of those days&rsquo; misses, applied to tomorrow, would put it between{' '}
+      . {inTen(whole.lower_pct, whole.upper_pct)} of those days&rsquo; misses, applied to tomorrow, would put it between{' '}
       <mark>
         {num(low)} and {mwh(high)}
       </mark>

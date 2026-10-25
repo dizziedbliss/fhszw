@@ -34,6 +34,10 @@ class WholeDay:
     forecast_mwh: float
     actual_mwh: float
 
+    @property
+    def miss_mwh(self) -> float:
+        return self.forecast_mwh - self.actual_mwh
+
 
 @dataclass(frozen=True)
 class Window:
@@ -90,7 +94,7 @@ class TrackRecord:
         for back in range(count, 0, -1):
             day = today - timedelta(days=back)
             halves = by_day.get(day, [])
-            if len(halves) != _half_hours_in(day, self._tz):
+            if len(halves) != day_length(day, self._tz) // timedelta(minutes=30):
                 skipped += 1
                 continue
             # Each half-hour is average MW over 30 minutes: MW x 0.5 h = MWh.
@@ -104,11 +108,11 @@ class TrackRecord:
         return tuple(days), skipped
 
 
-def _half_hours_in(day: date, tz: ZoneInfo) -> int:
-    """48, or 46 / 50 on clock-change days: counted in UTC so the clocks can't fool it."""
+def day_length(day: date, tz: ZoneInfo) -> timedelta:
+    """24 hours, or 23 / 25 on clock-change days: measured in UTC so the clocks can't fool it."""
     start = datetime.combine(day, time(0), tzinfo=tz).astimezone(UTC)
     end = datetime.combine(day + timedelta(days=1), time(0), tzinfo=tz).astimezone(UTC)
-    return (end - start) // timedelta(minutes=30)
+    return end - start
 
 
 def _pair_with_product(

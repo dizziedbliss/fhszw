@@ -32,15 +32,6 @@
   border-bottom: 2px solid var(--ink);
 }
 
-.caption {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* Long tables (672 half-hours): let the browser skip rendering rows that are off-screen. */
 .table tbody tr {
   content-visibility: auto;

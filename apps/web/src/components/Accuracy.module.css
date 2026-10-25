@@ -4,36 +4,24 @@
   max-width: 62ch;
 }
 
-.table {
-  border-collapse: collapse;
-  width: 100%;
-  font-variant-numeric: tabular-nums;
-}
-
-.table th,
-.table td {
+/* The scorecard is the base table (Table.module.css) with bigger numbers and room for each
+   measure's meaning. `table.scorecard` outranks `.table`, whatever order the styles load in. */
+table.scorecard th,
+table.scorecard td {
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--rule);
-  text-align: right;
   vertical-align: top;
 }
 
-.table th:first-child {
-  text-align: left;
-  padding-left: 0;
+/* A short table on the page itself: no sticky header (that's for the long scrolling ones). */
+table.scorecard thead th {
+  position: static;
 }
 
-.table thead th {
-  font-weight: 600;
-  color: var(--ink-2);
-  border-bottom: 2px solid var(--ink);
-}
-
-.table tbody th {
+table.scorecard tbody th {
   font-weight: 700;
 }
 
-.table td {
+table.scorecard td {
   font-size: var(--step-1);
   font-weight: 600;
   white-space: nowrap;
@@ -47,32 +35,18 @@
   color: var(--ink-2);
 }
 
-.note {
-  color: var(--ink-2);
-  margin: var(--space-2) 0 0;
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* Phones: give the measure column room so its meaning wraps once, not five times. */
 @media (max-width: 40rem) {
-  .table tbody th {
+  table.scorecard tbody th {
     width: 46%;
   }
 
-  .table th,
-  .table td {
+  table.scorecard th,
+  table.scorecard td {
     padding: 0.6rem 0.35rem;
   }
 
-  .table td {
+  table.scorecard td {
     font-size: var(--step-0);
   }
 }

@@ -27,8 +27,9 @@ A January 2026 simulation of the 09:30 read before the GB day-ahead gate (09:50)
       - `.last(days)` returns a `Window`: scored half-hours, unscored count, and days before the sim start. The "last N days" rule lives only here.
       - `.whole_days(n)` returns the last *n* complete local days before today. A day counts only if every half-hour was scored (48, or 46/50 on clock-change days); others are skipped and counted.
     - `scoring.py`: pure formulas (MAE, RMSE, bias, linear percentile, direction agreement).
+    - `decision.py`: one `_Spread` (P10/P90 of some misses) with `.apply(value) -> (low, high, clipped)` serves both the hourly band and the whole-day range. The 0-MWh hold lives only there.
     - `models.py`: input rows (dataclasses) and the `DecisionView` output (pydantic; it *is* the API schema).
-    - `settings.py`: every operational value, overridable via `WIND_*` env vars.
+    - `settings.py`: every operational value, overridable via `WIND_*` env vars. `lookback_days` is how far back to fetch, so it covers every window (scoring, band, whole days).
     - `cli.py`: prints `DecisionView` JSON for a day and slot.
     - `api.py`: `create_app(settings, source, clock)`; tests inject fakes for the last two.
       - `GET /api/decision?today=YYYY-MM-DD&slot=HH:MM` returns `DecisionView` plus `fetched_at`. Success is `Cache-Control: public, max-age=300, s-maxage=31536000`.
@@ -53,7 +54,13 @@ A January 2026 simulation of the 09:30 read before the GB day-ahead gate (09:50)
     - **Footer:** sources and fetch time.
   - `useDecision` fetches via `api.ts`. Loading is derived, never stored. Errors show the API's sentence plus *Try again*.
   - `format.ts` is the only place numbers, signs and UK times are formatted (Intl, `Europe/London`, non-breaking spaces, real minus sign).
-  - `simulation.ts` holds the offered days, slots and gate time. The API stays the authority.
+    - `lean(value, decimals)` is the one sign rule: round the size, keep the sign, so −0.5 and +0.5 lean alike. Every signed number and every "higher/lower/above/below" word uses it.
+    - `inTen(lower, upper)` turns percentiles into "8 in 10".
+  - **Shared pieces:**
+    - `components/chartStyle.ts`: axes, grid, cursor, the two pens, step lines, and the Chart/Table switch options. The history legend draws from the same pens.
+    - `components/Shared.module.css`: section spacing, subheads, head rows, notes and `.visuallyHidden`. The scorecard is the base `Table.module.css` table plus `table.scorecard` overrides (no sticky header).
+  - **Charts are lazy-loaded** (`React.lazy`), so Recharts downloads alongside the data instead of in front of it, with fixed-height placeholders.
+  - `simulation.ts` holds the offered days (`SIM_DAYS`), slots, gate time, `DAY_MS`, and `toQuery()`, the one `?today=&slot=` builder used by both the address bar and the API call. The API stays the authority.
   - **Styling:** CSS Modules plus `tokens.css` (chart-recorder palette, light and dark via `prefers-color-scheme`, validated for colour-blind separation and AA contrast). Font: self-hosted Atkinson Hyperlegible Next, with `tabular-nums` everywhere.
   - **Tests:**
     - Vitest + Testing Library on two seams: the whole page with only the network faked (`src/test/fake-api.ts`, serving a real recorded Jan 15 response), and `format.ts`. Chart pixels aren't unit-tested.
@@ -65,13 +72,13 @@ A January 2026 simulation of the 09:30 read before the GB day-ahead gate (09:50)
   - **`prod`:** the production images. The API healthcheck is liveness via `/api/openapi.json`, deliberately *not* `/api/health`, which calls Elexon.
 - **Production images** (pinned, non-root):
   - `apps/api/Dockerfile`: uv build stage, then the locked venv on `python:3.14.9-slim-trixie` with uvicorn, uid 10001.
-  - `apps/web/Dockerfile`: node build, then `nginx-unprivileged:1.31.7-alpine3.24` (uid 101).
+  - `apps/web/Dockerfile`: node build, then `nginx-unprivileged:1.31.7-alpine3.24` (uid 101). The build stage copies only build inputs, and both Dockerfiles use BuildKit cache mounts for npm/uv downloads.
   - `apps/web/nginx.conf`: serves the SPA (deep links fall back to `index.html`, which is `no-cache`), proxies `/api/` to the api, and caches `/assets/` for a year.
-- **`vercel.json`** uses Vercel Services: `web` (Vite, `npm ci`, SPA rewrite) and `api` (`entrypoint: main:app`). Top-level rewrites send `/api/(.*)` → api and everything else → web. `.vercelignore` keeps local envs and tests out of uploads.
+- **`vercel.json`** uses Vercel Services: `web` (Vite, `npm ci`, SPA rewrite, `/assets/*` cached a year as immutable) and `api` (`entrypoint: main:app`). Top-level rewrites send `/api/(.*)` → api and everything else → web. `.vercelignore` keeps local envs and tests out of uploads.
 - **Live:** https://wind-day-ahead.vercel.app (Vercel project `dizziedbliss/wind-day-ahead`, production).
   - Deploys are **manual only**: the GitHub repo is deliberately *disconnected*, so pushes and merges deploy nothing.
   - `.vercel/` and `.env.local` (Vercel OIDC token) are local and gitignored.
-  - Vercel serves `/assets/*` with `max-age=0` (nginx caches them for a year). An immutable `headers` rule in `vercel.json` is an open follow-up.
+  - The `/assets/*` immutable cache rule is in `vercel.json` but takes effect only on the next production deploy.
 
 ## Conventions
 

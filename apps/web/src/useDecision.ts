@@ -3,7 +3,7 @@ import { ApiError, fetchDecision } from './api.ts'
 import type { DecisionResponse } from './api/types.gen.ts'
 import type { Choice } from './simulation.ts'
 
-export type DecisionState =
+type DecisionState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; data: DecisionResponse }

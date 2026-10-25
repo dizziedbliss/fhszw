@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest'
 import {
   dayLong,
+  hourLabel,
+  inTen,
+  lean,
+  monthYear,
   dayShort,
   dayTick,
   miss,
@@ -106,5 +110,38 @@ describe('tenths (whole-day MWh, so forecast - actual = miss checks exactly)', (
     [-4774.5, '\u22124,774.5'],
   ])('signedTenths(%s) is %s', (value, expected) => {
     expect(signedTenths(value)).toBe(expected)
+  })
+})
+
+describe('lean (the one sign rule every signed number and word uses)', () => {
+  test.each([
+    [1534.04, 1],
+    [0.4, 0],
+    [0.5, 1],
+    [-0.5, -1], // the same size as +0.5, so it leans the same amount
+  ])('lean(%s) is %s', (value, expected) => {
+    expect(lean(value)).toBe(expected)
+  })
+
+  test('it can judge at one decimal place too', () => {
+    expect([lean(0.04, 1), lean(-0.05, 1)]).toEqual([0, -1])
+  })
+})
+
+describe('inTen', () => {
+  test('a share in tens reads as "N in 10"; anything else stays an honest percentage', () => {
+    expect([inTen(10, 90), inTen(10, 85)]).toEqual(['8 in 10', '75%'])
+  })
+})
+
+describe('hourLabel', () => {
+  test('hours of the day, with 24:00 for the end of it', () => {
+    expect([hourLabel(3), hourLabel(24)]).toEqual(['03:00', '24:00'])
+  })
+})
+
+describe('monthYear', () => {
+  test('a plain date as month and year, without shifting it', () => {
+    expect(monthYear('2025-12-31')).toBe('Dec 2025')
   })
 })

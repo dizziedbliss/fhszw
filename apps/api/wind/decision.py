@@ -23,7 +23,7 @@ from wind.models import (
 )
 from wind.settings import Settings
 from wind.source import Source
-from wind.track_record import ScoredHalfHour, TrackRecord, Window
+from wind.track_record import ScoredHalfHour, TrackRecord, Window, day_length
 
 
 class ForecastUnavailableError(Exception):
@@ -32,13 +32,19 @@ class ForecastUnavailableError(Exception):
 
 @dataclass(frozen=True)
 class _Spread:
-    """Where the band window's misses fell: tomorrow's band is forecast - upper .. - lower."""
+    """The middle of some past misses (P_lower .. P_upper): the same "8 in 10" for the
+    hourly band and the whole-day range."""
 
-    window: Window
     lower_pct: float
     upper_pct: float
-    lower_miss_mw: float
-    upper_miss_mw: float
+    lower_miss: float
+    upper_miss: float
+
+    def apply(self, value: float) -> tuple[float, float, bool]:
+        """Where `value` lands if it misses like the past did: (low, high, clipped).
+        A big miss on a small forecast would mean negative energy, so both edges hold at 0."""
+        raw_low = value - self.upper_miss
+        return max(0.0, raw_low), max(0.0, value - self.lower_miss), raw_low < 0
 
 
 async def build_decision(
@@ -49,7 +55,7 @@ async def build_decision(
     # The bouncer: from here on, nothing published after as-of can get in.
     source = behind_barrier(source, as_of)
 
-    fetch_days = max((*settings.windows_days, settings.band_window_days))
+    fetch_days = settings.lookback_days
     forecasts, actuals = await asyncio.gather(
         # One extra day: the oldest half-hours are scored against the publish before them.
         source.forecasts(as_of - timedelta(days=fetch_days + 1), as_of),
@@ -57,30 +63,43 @@ async def build_decision(
     )
     record = TrackRecord(forecasts, actuals, slot, as_of, tz, settings.sim_first_day)
 
-    spread = _spread(record.last(settings.band_window_days), settings)
-    tomorrow, band = _tomorrow(forecasts, today, slot, as_of, tz, spread)
+    band_window = record.last(settings.band_window_days)
+    band_spread = _spread(band_window.misses, settings)
+    tomorrow, clipped = _tomorrow(forecasts, today, slot, as_of, tz, band_spread)
     whole_days = _whole_days(record, tomorrow.total_mwh, settings)
     return DecisionView(
         tomorrow=tomorrow,
-        band=band,
+        band=_band(band_window, band_spread, clipped),
         windows=[_score(record.last(days), tz) for days in settings.windows_days],
         whole_days=whole_days,
         history=_history(record.last(max(settings.windows_days))),
     )
 
 
-def _spread(window: Window, settings: Settings) -> _Spread | None:
-    """Spread of the band window's misses. Always its own window, whatever the scoring
-    windows are: a band promising 8 in 10 needs enough history to keep that promise."""
-    misses = window.misses
+def _spread(misses: Sequence[float], settings: Settings) -> _Spread | None:
     if not misses:
         return None
     return _Spread(
-        window=window,
         lower_pct=settings.band_lower_pct,
         upper_pct=settings.band_upper_pct,
-        lower_miss_mw=scoring.percentile(misses, settings.band_lower_pct),
-        upper_miss_mw=scoring.percentile(misses, settings.band_upper_pct),
+        lower_miss=scoring.percentile(misses, settings.band_lower_pct),
+        upper_miss=scoring.percentile(misses, settings.band_upper_pct),
+    )
+
+
+def _band(window: Window, spread: _Spread | None, clipped: bool) -> Band | None:
+    """The band always uses its own window, whatever the scoring windows are: a band
+    promising 8 in 10 needs enough history to keep that promise."""
+    if spread is None:
+        return None
+    return Band(
+        window_days=window.days,
+        half_hours=len(window.scored),
+        lower_pct=spread.lower_pct,
+        upper_pct=spread.upper_pct,
+        lower_miss_mw=spread.lower_miss,
+        upper_miss_mw=spread.upper_miss,
+        clipped_at_zero=clipped,
     )
 
 
@@ -91,9 +110,10 @@ def _tomorrow(
     as_of: datetime,
     tz: ZoneInfo,
     spread: _Spread | None,
-) -> tuple[Tomorrow, Band | None]:
-    """Tomorrow from the publish at as-of, with each hour's band edges, or an error when
-    that publish is missing or incomplete (never a fallback to another publish)."""
+) -> tuple[Tomorrow, bool]:
+    """Tomorrow from the publish at as-of, with each hour's band edges (and whether any
+    edge was held at 0), or an error when that publish is missing or incomplete (never a
+    fallback to another publish)."""
     delivery_day = today + timedelta(days=1)
     start = datetime.combine(delivery_day, time(0), tzinfo=tz)
     end = start + timedelta(days=1)
@@ -101,8 +121,7 @@ def _tomorrow(
         (r for r in forecasts if r.publish_time == as_of and start <= r.start_time < end),
         key=lambda r: r.start_time,
     )
-    # Count hours in UTC so a 23- or 25-hour clock-change day is measured correctly.
-    expected = (end.astimezone(UTC) - start.astimezone(UTC)) // timedelta(hours=1)
+    expected = day_length(delivery_day, tz) // timedelta(hours=1)
     if len(rows) != expected:
         raise ForecastUnavailableError(
             f"Elexon has {len(rows)} of {expected} hours for {delivery_day} "
@@ -115,11 +134,8 @@ def _tomorrow(
         low: float | None = None
         high: float | None = None
         if spread is not None:
-            raw_low = row.generation_mw - spread.upper_miss_mw
-            # A big miss subtracted from a small forecast would mean negative wind: hold at 0.
-            clipped = clipped or raw_low < 0
-            low = max(0.0, raw_low)
-            high = max(0.0, row.generation_mw - spread.lower_miss_mw)
+            low, high, hour_clipped = spread.apply(row.generation_mw)
+            clipped = clipped or hour_clipped
         hours.append(
             HourForecast(
                 start_time=row.start_time,
@@ -140,20 +156,7 @@ def _tomorrow(
         low=Extreme(mw=lowest.generation_mw, start_time=lowest.start_time),
         high=Extreme(mw=highest.generation_mw, start_time=highest.start_time),
     )
-    band = (
-        None
-        if spread is None
-        else Band(
-            window_days=spread.window.days,
-            half_hours=len(spread.window.scored),
-            lower_pct=spread.lower_pct,
-            upper_pct=spread.upper_pct,
-            lower_miss_mw=spread.lower_miss_mw,
-            upper_miss_mw=spread.upper_miss_mw,
-            clipped_at_zero=clipped,
-        )
-    )
-    return tomorrow, band
+    return tomorrow, clipped
 
 
 def _whole_days(record: TrackRecord, tomorrow_mwh: float, settings: Settings) -> WholeDays:
@@ -163,30 +166,42 @@ def _whole_days(record: TrackRecord, tomorrow_mwh: float, settings: Settings) ->
             day=d.day,
             forecast_mwh=d.forecast_mwh,
             actual_mwh=d.actual_mwh,
-            miss_mwh=d.forecast_mwh - d.actual_mwh,
-            miss_pct=100 * (d.forecast_mwh - d.actual_mwh) / d.forecast_mwh,
+            miss_mwh=d.miss_mwh,
+            miss_pct=100 * d.miss_mwh / d.forecast_mwh,
         )
         for d in days
     ]
-    misses = [p.miss_mwh for p in past]
-    forecast_total = sum(p.forecast_mwh for p in past)
-    lower = scoring.percentile(misses, settings.band_lower_pct) if misses else None
-    upper = scoring.percentile(misses, settings.band_upper_pct) if misses else None
-    raw_low = None if upper is None else tomorrow_mwh - upper
+    misses = [d.miss_mwh for d in days]
+    spread = _spread(misses, settings)
+    if spread is None:
+        return WholeDays(
+            window_days=settings.whole_day_window_days,
+            days=past,
+            skipped_days=skipped,
+            average_miss_mwh=None,
+            average_miss_pct=None,
+            lower_pct=settings.band_lower_pct,
+            upper_pct=settings.band_upper_pct,
+            lower_miss_mwh=None,
+            upper_miss_mwh=None,
+            tomorrow_low_mwh=None,
+            tomorrow_high_mwh=None,
+            clipped_at_zero=False,
+        )
+    low, high, clipped = spread.apply(tomorrow_mwh)
     return WholeDays(
         window_days=settings.whole_day_window_days,
         days=past,
         skipped_days=skipped,
-        average_miss_mwh=scoring.bias(misses) if misses else None,
-        average_miss_pct=100 * sum(misses) / forecast_total if misses else None,
-        lower_pct=settings.band_lower_pct,
-        upper_pct=settings.band_upper_pct,
-        lower_miss_mwh=lower,
-        upper_miss_mwh=upper,
-        # A day can't generate negative energy: hold the edges at 0 and say so.
-        tomorrow_low_mwh=None if raw_low is None else max(0.0, raw_low),
-        tomorrow_high_mwh=None if lower is None else max(0.0, tomorrow_mwh - lower),
-        clipped_at_zero=raw_low is not None and raw_low < 0,
+        average_miss_mwh=scoring.bias(misses),
+        average_miss_pct=100 * sum(misses) / sum(d.forecast_mwh for d in days),
+        lower_pct=spread.lower_pct,
+        upper_pct=spread.upper_pct,
+        lower_miss_mwh=spread.lower_miss,
+        upper_miss_mwh=spread.upper_miss,
+        tomorrow_low_mwh=low,
+        tomorrow_high_mwh=high,
+        clipped_at_zero=clipped,
     )
 
 

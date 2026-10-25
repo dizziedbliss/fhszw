@@ -45,6 +45,8 @@ flowchart LR
 - **One front door.** Everything goes through `build_decision(today, slot, source, settings)`. Fetching, the barrier, pairing and scoring all sit behind it, and it returns one JSON answer.
 - **The barrier is a bouncer, not a filter.** Its first step wraps the data source, so unfiltered rows never enter the engine. A "poisoned row" test feeds in data published at 09:31 and checks the output doesn't change by a single byte.
 - **The frontend only renders.** All the maths is in Python. The TypeScript types are generated from the API's own OpenAPI schema, and `make check` fails if they drift.
+- **One rule, one place.** The hourly band and the whole-day range share one "8 in 10" spread in Python. Every signed number on screen goes through one sign rule in `format.ts`. Both charts share one style module, and the legend draws from the same pens as the lines.
+- **Charts load alongside the data.** Recharts is lazy-loaded, so the page fetches its numbers straight away. The JS in front of the fetch is about 75 KB gzipped.
 - **No database.** January 2026 is history, so each answer is cached at the CDN for a year. Errors are never cached.
 - **Every operational value is a setting** (windows, percentiles, slots, cache ages, Elexon URL), overridable with `WIND_*` environment variables.
 
@@ -73,9 +75,11 @@ flowchart LR
 │       │   ├── App.tsx           the one screen; the chosen day and slot live in the URL
 │       │   ├── components/       Controls, Tomorrow, DayRange, HourlyMiss, ForecastChart,
 │       │   │                     Accuracy, WholeDaysTable, History, HistoryChart, ViewSwitch
+│       │   │   ├── chartStyle.ts     shared axes, pens and Chart/Table options for every chart
+│       │   │   └── Shared.module.css shared section, heading, note and screen-reader styles
 │       │   ├── api.ts            fetch + error messages      api/  generated API types
 │       │   ├── format.ts         MW, MWh, signs and UK time: every number goes through here
-│       │   ├── useDecision.ts    loading / error / ready     simulation.ts  days, slots, gate
+│       │   ├── useDecision.ts    loading / error / ready     simulation.ts  days, slots, gate, query
 │       │   ├── tokens.css        colours, type and spacing (light + dark)
 │       │   └── test/             a real recorded API answer + a network fake
 │       ├── e2e/smoke.spec.ts     Playwright: a real browser against a running deployment
@@ -130,15 +134,16 @@ make smoke-url SMOKE_URL=https://wind-day-ahead.vercel.app
 
 ## Tests
 
-- **API (68):**
+- **API (69):**
   - the engine, through `build_decision`, with hand-worked numbers;
   - the Elexon client against a fake network, including 12 ways Elexon can fail;
   - the HTTP API;
   - a **golden test** that runs recorded real January data and must match an independently written answer key exactly;
+  - a check that data is fetched far enough back for every window;
   - one live Elexon call.
-- **Web (44):**
+- **Web (52):**
   - the whole page as a person uses it, with only the network faked (a real recorded API answer);
-  - the formatting rules, including UK time on a non-UK machine.
+  - the formatting rules, including the one sign rule and UK time on a non-UK machine.
 - **Smoke (2):** a real browser against the production build, or against the live site.
 
 ## Data
@@ -149,4 +154,4 @@ make smoke-url SMOKE_URL=https://wind-day-ahead.vercel.app
 
 ## Credits
 
-Designed and directed by **dizziedbliss**. Built in pair with **Claude** (Anthropic's Claude Opus 5.5) in Claude Code, test-first, one reviewed PR per stage.
+Designed by **dizziedbliss**. Built in pair with **Claude** (Anthropic's Claude Opus 5.5) in Claude Code, test-first, one reviewed PR per stage.
