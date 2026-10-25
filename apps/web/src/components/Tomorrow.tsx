@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { Band, Tomorrow as TomorrowData, WholeDays } from '../api/types.gen.ts'
+import type { Band, Tomorrow as TomorrowData, WholeDays, WindowMetrics } from '../api/types.gen.ts'
 import { dayLong, mw, mwh, num, signed, ukTime } from '../format.ts'
 import { DayRange } from './DayRange.tsx'
 import { ForecastChart } from './ForecastChart.tsx'
+import { HourlyMiss } from './HourlyMiss.tsx'
 import tables from './Table.module.css'
 import styles from './Tomorrow.module.css'
 import { ViewSwitch } from './ViewSwitch.tsx'
@@ -33,10 +34,12 @@ export function Tomorrow({
   tomorrow,
   band,
   wholeDays,
+  recent,
 }: {
   tomorrow: TomorrowData
   band: Band | null
   wholeDays: WholeDays
+  recent: WindowMetrics | undefined
 }) {
   const [view, setView] = useState<(typeof VIEWS)[number]['value']>('chart')
   return (
@@ -48,6 +51,7 @@ export function Tomorrow({
         <b>{mw(tomorrow.high.mw)}</b> at {ukTime(tomorrow.high.start_time)}.
       </p>
       <DayRange whole={wholeDays} />
+      <HourlyMiss window={recent} />
       <div className={styles.head}>
         <span className={styles.what}>Hourly forecast, MW</span>
         <ViewSwitch label="Show tomorrow as" options={VIEWS} value={view} onChange={setView} />

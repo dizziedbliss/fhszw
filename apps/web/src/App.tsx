@@ -68,6 +68,8 @@ export default function App() {
               tomorrow={state.data.tomorrow}
               band={state.data.band}
               wholeDays={state.data.whole_days}
+              // The shortest scoring window: the most recent read on the hourly miss.
+              recent={[...state.data.windows].sort((a, b) => a.days - b.days)[0]}
             />
             <section aria-labelledby="accuracy" className={styles.section}>
               <Accuracy windows={state.data.windows} slot={choice.slot} />

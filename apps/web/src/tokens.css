@@ -11,6 +11,8 @@
   --pen-forecast: #3a4fc4;
   --pen-actual: #16835a;
   --setpoint: #b5321f;
+  /* How-far-off numbers: the band's blue as a highlighter (ink on it: 11.3:1). */
+  --highlight: color-mix(in srgb, var(--pen-forecast) 18%, transparent);
 
   --step--1: 0.875rem;
   --step-0: 1.0625rem;
@@ -38,6 +40,8 @@
     --pen-forecast: #7083e6;
     --pen-actual: #2fa874;
     --setpoint: #f07a62;
+    /* Ink on it: 10.0:1. */
+    --highlight: color-mix(in srgb, var(--pen-forecast) 26%, transparent);
   }
 }
 
@@ -53,6 +57,16 @@ body {
   font-size: var(--step-0);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
+}
+
+mark {
+  background: var(--highlight);
+  color: var(--ink);
+  font-weight: 700;
+  padding: 0 0.2em;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 h2,
