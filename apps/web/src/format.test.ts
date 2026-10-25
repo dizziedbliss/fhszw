@@ -1,0 +1,82 @@
+import { describe, expect, test } from 'vitest'
+import {
+  dayLong,
+  dayShort,
+  dayTick,
+  miss,
+  mw,
+  mwh,
+  num,
+  pct,
+  signed,
+  ukDateTime,
+  ukDayTime,
+  ukTime,
+} from './format.ts'
+
+const NBSP = ' '
+
+describe('mw', () => {
+  test('rounds to whole MW with thousands separators, and never splits number from unit', () => {
+    expect(mw(5880.6)).toBe(`5,881${NBSP}MW`)
+  })
+})
+
+describe('mwh', () => {
+  test('formats energy the same way, in MWh', () => {
+    expect(mwh(191402)).toBe(`191,402${NBSP}MWh`)
+  })
+})
+
+describe('miss', () => {
+  test.each([
+    [1534.04, `+1,534${NBSP}MW`, 'forecast higher'],
+    [-949.5, `\u2212950${NBSP}MW`, 'forecast lower'], // same size as +949.5, so 950 too
+    [0.2, `0${NBSP}MW`, 'no lean either way'],
+  ])('%s MW reads as %s, %s', (value, text, words) => {
+    expect(miss(value)).toEqual({ text, words })
+  })
+})
+
+describe('pct', () => {
+  test('one decimal place', () => {
+    expect(pct(62.264151)).toBe('62.3%')
+  })
+})
+
+describe('UK time', () => {
+  test('clock times are UK time, whatever the viewer machine is set to', () => {
+    expect(ukTime('2026-01-16T06:00:00Z')).toBe('06:00') // GMT in winter
+    expect(ukTime('2026-07-01T05:00:00Z')).toBe('06:00') // BST in summer
+  })
+
+  test('history rows and the footer carry the day too', () => {
+    expect(ukDayTime('2026-01-15T09:00:00Z')).toBe('15 Jan 09:00')
+    expect(ukDateTime('2026-10-25T11:01:26.301429Z')).toBe('25 Oct 2026, 11:01')
+  })
+})
+
+describe('days', () => {
+  test.each([
+    [dayLong, 'Friday 16 January'],
+    [dayShort, 'Fri 16 Jan'],
+    [dayTick, '16 Jan'],
+  ])('%o formats a plain date without shifting it a day', (format, expected) => {
+    expect(format('2026-01-16')).toBe(expected)
+  })
+})
+
+describe('num', () => {
+  test('table cells: whole number with separators, unit lives in the column header', () => {
+    expect(num(2980.5)).toBe('2,981')
+  })
+})
+
+describe('signed', () => {
+  test.each([
+    [4491.5, '+4,492'],
+    [-949.5, '\u2212950'],
+  ])('%s keeps an explicit sign: %s', (value, expected) => {
+    expect(signed(value)).toBe(expected)
+  })
+})

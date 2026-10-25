@@ -1,0 +1,40 @@
+.hero {
+  font-size: var(--step-3);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin: var(--space-4) 0;
+  max-width: 34ch;
+  text-wrap: balance;
+}
+
+.select {
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  /* Explicit colours: Windows dark mode otherwise paints the open list white-on-white. */
+  background-color: var(--page);
+  border: 0;
+  touch-action: manipulation;
+  border-bottom: 3px solid var(--ink);
+  border-radius: 0;
+  padding: 0 0.1em;
+  cursor: pointer;
+}
+
+.select:hover {
+  border-bottom-color: var(--pen-forecast);
+}
+
+.select:focus-visible {
+  outline: 3px solid var(--pen-forecast);
+  outline-offset: 3px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

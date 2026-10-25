@@ -78,7 +78,7 @@ def test_when_elexon_fails_he_gets_a_plain_502_and_the_logs_get_the_reason(
 
     assert response.status_code == 502
     assert response.json() == {
-        "detail": "Couldn't get data from Elexon right now. "
+        "detail": "Couldn’t get data from Elexon right now. "
         "Nothing is shown rather than guessed. Try again in a minute."
     }
     assert response.headers["cache-control"] == "no-store"

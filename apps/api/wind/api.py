@@ -22,7 +22,7 @@ from wind.source import Source
 
 NO_STORE = {"Cache-Control": "no-store"}
 ELEXON_DOWN = (
-    "Couldn't get data from Elexon right now. "
+    "Couldn’t get data from Elexon right now. "
     "Nothing is shown rather than guessed. Try again in a minute."
 )
 

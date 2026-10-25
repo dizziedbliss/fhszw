@@ -1,0 +1,110 @@
+.wrap {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 var(--space-3);
+}
+
+@media (max-width: 40rem) {
+  .wrap {
+    padding: 0 1rem;
+  }
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-3) 0 var(--space-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  font-size: var(--step-0);
+  font-weight: 700;
+  margin: 0;
+}
+
+.section {
+  padding-bottom: var(--space-5);
+}
+
+.gate {
+  margin: 0;
+  color: var(--setpoint);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gate svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  fill: var(--setpoint);
+  flex: none;
+}
+
+.status {
+  color: var(--ink-2);
+  margin: 0;
+  min-height: 1.5em;
+}
+
+.status:empty {
+  min-height: 0;
+}
+
+.error {
+  border-left: 4px solid var(--setpoint);
+  padding: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.error p {
+  margin: 0 0 var(--space-1);
+  font-size: var(--step-1);
+}
+
+.retry {
+  font: inherit;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.retry:hover {
+  background: var(--paper);
+}
+
+.retry:focus-visible {
+  outline: 3px solid var(--pen-forecast);
+  outline-offset: 3px;
+}
+
+.footer {
+  border-top: 1px solid var(--rule);
+  color: var(--ink-2);
+  padding: var(--space-3) 0 var(--space-4);
+  font-size: var(--step-0);
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--ink);
+  color: var(--page);
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.skip:focus {
+  left: 1rem;
+}

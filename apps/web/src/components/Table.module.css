@@ -1,0 +1,48 @@
+.scroll {
+  max-height: 26rem;
+  overflow: auto;
+  border-top: 1px solid var(--rule);
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--page);
+  font-weight: 600;
+  color: var(--ink-2);
+  border-bottom: 2px solid var(--ink);
+}
+
+.caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Long tables (672 half-hours): let the browser skip rendering rows that are off-screen. */
+.table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.6rem;
+}

@@ -1,0 +1,76 @@
+/* Design tokens: the chart-recorder palette (validated: pens pass CVD checks, text AA+). */
+:root {
+  color-scheme: light;
+  --page: #f7f9f6;
+  --paper: #eef3ee;
+  --grid: #dbe5dc;
+  --grid-major: #c3d1c6;
+  --rule: #d3dcd5;
+  --ink: #1c2520;
+  --ink-2: #4d5a53;
+  --pen-forecast: #3a4fc4;
+  --pen-actual: #16835a;
+  --setpoint: #b5321f;
+
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3125rem;
+  --step-2: 1.65rem;
+  --step-3: 2.0625rem;
+
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2.5rem;
+  --space-5: 4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #151b18;
+    --paper: #1a221e;
+    --grid: #26302b;
+    --grid-major: #33403a;
+    --rule: #2c3631;
+    --ink: #e7ece8;
+    --ink-2: #a3afa8;
+    --pen-forecast: #7083e6;
+    --pen-actual: #2fa874;
+    --setpoint: #f07a62;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  font-size: var(--step-0);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+h2,
+h3 {
+  text-wrap: balance;
+  scroll-margin-top: var(--space-3);
+}
+
+h2 {
+  font-size: var(--step-2);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

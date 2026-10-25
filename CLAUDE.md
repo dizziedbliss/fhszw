@@ -32,7 +32,19 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
       - An httpx client is opened per request, because serverless runtimes don't reliably run startup hooks.
   - Tests are in `tests/`. Agreed seams: `build_decision` (with `FakeSource`), `ElexonSource` (with httpx `MockTransport`), `scoring` (pure), and a golden test running recorded real Elexon data (`tests/fixtures/`) through both, against numbers from an independent script.
 - `apps/web`: Vite + React 19 + TypeScript.
-  - It currently renders a heading only.
+  - One screen (`App.tsx`):
+    - **Header:** wordmark and the 09:50 gate.
+    - **Hero sentence with the two `<select>`s** (`Controls`). The choice lives in the URL (`?today=&slot=`), so links can be shared and Back works.
+    - **`Tomorrow`:** summary sentence, then a Chart ⇄ Table switch (`ForecastChart`, hourly steps plus the band), then the band caption.
+    - **`Accuracy`:** a 7d | 14d scorecard with each metric's meaning, plus notes on skipped half-hours and December days.
+    - **`History`:** a length switch built from the API's windows, then Chart ⇄ Table (`HistoryChart`, two pens), newest first.
+    - **Footer:** sources and fetch time.
+  - `useDecision` fetches via `api.ts`. Loading is derived, never stored. Errors show the API's sentence plus *Try again*.
+  - `format.ts` is the only place numbers, signs and UK times are formatted (Intl, `Europe/London`, non-breaking spaces, real minus sign).
+  - `simulation.ts` holds the offered days, slots and gate time. The API stays the authority.
+  - Styling: CSS Modules plus `tokens.css` (chart-recorder palette, light and dark via `prefers-color-scheme`, validated for colour-blind separation and AA contrast). Font: self-hosted Atkinson Hyperlegible Next, with `tabular-nums` everywhere.
+  - Tests (Vitest + Testing Library) use two seams: the whole page with only the network faked (`src/test/fake-api.ts`, serving a real recorded Jan 15 response), and `format.ts`. Chart pixels aren't unit-tested.
+  - `@playwright/test` is installed but has no tests yet.
   - `src/api/` is **generated** (`@hey-api/openapi-ts`, types only). Never edit it by hand. `package.json` overrides `js-yaml` to 4.3.2 to patch an advisory in the generator's dependency.
   - The dev server binds `0.0.0.0:5173` via the `--host` flag in `npm run dev`, not via config: Vite drops a config-file host when it restarts after a config change and proxies `/api` to `API_PROXY_TARGET` (default `http://localhost:8000`; in compose, `http://api-dev:8000`).
 - `compose.yaml`: `dev` profile with `api-dev` (uv image, `fastapi dev`) and `web-dev` (node image, `vite`). Source is bind-mounted; deps live in named volumes.
@@ -46,6 +58,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - Never swallow an error. Elexon failures surface as visible errors, never as empty or fake data.
 - Numbers: error = forecast − actual, so positive means the forecast was too high. Signed numbers always carry words ("forecast higher").
 - Times are shown in UK time (`Europe/London`, 24h).
+- UI copy is sentence case, with typographic apostrophes (ruff allows `’`), and `…` for in-progress states.
 
 ## Glossary
 
