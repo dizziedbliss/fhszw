@@ -19,7 +19,8 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
   - `wind/` is the domain package. Its one front door is `decision.build_decision(today, slot, source, settings) -> DecisionView`, and callers never see what's behind it:
     - `source.py`: the `Source` protocol (`forecasts(publish_from, publish_to)`, `actuals(settlement_from, settlement_to)`).
     - `elexon.py`: `ElexonSource`, the real Source over the BMRS Insights API. Every failure (network, timeout, non-2xx, bad shape, non-WIND rows) raises `ElexonError`.
-    - `barrier.py`: `visible_at(as_of, …)` drops anything published after as-of. It's the only path rows take into the engine.
+    - `barrier.py`: `behind_barrier(source, as_of)` is a bouncer that wraps any Source and refuses rows published after as-of. `build_decision` wraps its source with it as the first step, so unfiltered rows never enter the engine.
+    - `track_record.py`: `TrackRecord` pairs every visible past half-hour with its product forecast (held flat over the hour). `.last(days)` returns a `Window` (scored half-hours, unscored count, days before the sim start). The "last N days" rule lives only here.
     - `scoring.py`: pure formulas (MAE, RMSE, bias, linear percentile, direction agreement).
     - `models.py`: input rows (dataclasses) and the `DecisionView` output (pydantic, becoming the API schema).
     - `settings.py`: every operational value, overridable via `WIND_*` env vars.
@@ -55,7 +56,8 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - **Product:** the forecast from the same slot on the day before a given half-hour. It's what gets scored.
 - **Half-hour:** one FUELHH settlement period (average MW). The hourly forecast is held flat across both half-hours of its hour.
 - **Miss:** forecast − actual for one half-hour.
-- **Window:** the rolling 7 or 14 days of half-hours ending at as-of.
+- **Track record:** every visible past half-hour with its actual and its product forecast (or none, if that publish is missing). Windows are slices of it.
+- **Window:** the rolling 7 or 14 days of half-hours ending at as-of: `track_record.last(7)`.
 - **Band:** tomorrow's forecast minus the P90/P10 of the last 14 days' misses, i.e. "8 in 10 past half-hours landed in this range".
 
 ## Not built (deliberately)
