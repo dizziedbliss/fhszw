@@ -300,3 +300,28 @@ test('when days were skipped, the sentence says how many whole days it really us
   expect(await screen.findByText(/Over 12 whole days from the last 14/)).toBeInTheDocument()
   expect(screen.getByText(/2 of the last 14 days were skipped/)).toBeInTheDocument()
 })
+
+const hourSentence = () => screen.findByText(/Hour by hour/)
+
+test('right under tomorrow, the hourly typical miss and lean from the last 7 days', async () => {
+  fakeApi()
+  render(<App />)
+
+  expect(await hourSentence()).toHaveTextContent(
+    'Hour by hour, the last 7 days were off by 2,201 MW on a typical half-hour, leaning 1,534 MW high.',
+  )
+})
+
+test('the hourly sentence says when the forecast leaned low, and stays quiet without data', async () => {
+  const [week, fortnight] = JAN15.windows
+  let reply: DecisionResponse = { ...JAN15, windows: [{ ...week!, bias_mw: -812.4 }, fortnight!] }
+  fakeApi(() => ({ status: 200, body: reply }))
+  const { unmount } = render(<App />)
+  expect(await hourSentence()).toHaveTextContent('leaning 812 MW low.')
+  unmount()
+
+  reply = { ...JAN15, windows: [{ ...week!, half_hours: 0, mae_mw: null, bias_mw: null }, fortnight!] }
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Friday 16 January' })
+  expect(screen.queryByText(/Hour by hour/)).not.toBeInTheDocument()
+})

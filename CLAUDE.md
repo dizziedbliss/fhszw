@@ -37,7 +37,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
   - One screen (`App.tsx`):
     - **Header:** wordmark and the 09:50 gate.
     - **Hero sentence with the two `<select>`s** (`Controls`). The choice lives in the URL (`?today=&slot=`), so links can be shared and Back works.
-    - **`Tomorrow`:** summary sentence, the **day range** sentence (`DayRange`), then a Chart ⇄ Table switch (`ForecastChart`, hourly steps plus the band), then the band caption.
+    - **`Tomorrow`:** summary sentence, the **day range** sentence (`DayRange`), the **hourly miss** sentence (`HourlyMiss`, from the shortest scoring window), then a Chart ⇄ Table switch (`ForecastChart`, hourly steps plus the band), then the band caption.
     - **`Accuracy`:** a 7d | 14d scorecard with each metric's meaning, plus notes on skipped half-hours and December days.
     - **`WholeDaysTable`:** the 14 whole days behind the day range, newest first. Actual and miss MWh are shown to one decimal place so each row adds up exactly.
   - **`History`:** a length switch built from the API's windows, then Chart ⇄ Table (`HistoryChart`, two pens), newest first.
@@ -68,6 +68,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 - Never swallow an error. Elexon failures surface as visible errors, never as empty or fake data.
 - Numbers: error = forecast − actual, so positive means the forecast was too high. Signed numbers always carry words ("forecast higher").
 - Times are shown in UK time (`Europe/London`, 24h).
+- How-far-off numbers (day range, average miss, typical hourly miss and lean) are wrapped in `<mark>`. The highlighter is the band's blue tint (`--highlight`, ink on it 11.3:1 light / 10.0:1 dark), so they read as one family with the shaded band. Forecast numbers stay plain bold. No underline (reads as a link), no red or green (reads as good/bad, i.e. a nudge).
 - UI copy is sentence case, with typographic apostrophes (ruff allows `’`), and `…` for in-progress states.
 
 ## Glossary
