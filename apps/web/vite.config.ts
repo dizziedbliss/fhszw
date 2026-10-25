@@ -7,8 +7,9 @@ const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react()],
+  // Host is set by the dev script's --host flag: Vite drops a config-file host when it
+  // restarts after a config change, which silently breaks the Docker port mapping.
   server: {
-    host: '0.0.0.0',
     port: 5173,
     proxy: { '/api': apiTarget },
   },

@@ -41,3 +41,6 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "live: calls the real Elexon API over the internet (part of make check by choice)",
+]

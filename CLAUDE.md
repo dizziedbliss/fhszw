@@ -5,7 +5,8 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 ## Commands
 
 - `make install`: `uv sync --frozen` (api) + `npm ci` (web).
-- `make check`: ruff, ruff format, pyright, pytest, oxlint, tsc, vitest, vite build. A stage is done only when this passes.
+- `make check`: ruff, ruff format, pyright, pytest (including one **live Elexon** test, so it needs the internet), a check that the generated TS types match the API, oxlint, tsc, vitest, vite build. A stage is done only when this passes. Offline: `cd apps/api && uv run pytest -m "not live"`.
+- `make api-types`: regenerate `apps/web/src/api/` from the API's OpenAPI schema. Run it after changing any response model.
 - `make dev`: `docker compose --profile dev up`. Web at http://localhost:5173, API at http://localhost:8000/api/docs.
 - Without Docker: `cd apps/api && uv run fastapi dev` and `cd apps/web && npm run dev`.
 - Engine from the terminal (live Elexon): `cd apps/api && uv run python -m wind.cli 2026-01-15 09:30` prints the full decision view as JSON.
@@ -13,7 +14,7 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
 ## Architecture
 
 - `apps/api`: FastAPI on Python 3.14, managed by uv (`uv.lock`).
-  - `main.py` holds `app` (the entrypoint is declared in `pyproject.toml` under `[tool.fastapi]`).
+  - `main.py` holds `app = create_app()` (the entrypoint is declared in `pyproject.toml` under `[tool.fastapi]`).
   - Every route lives under `/api`, including `/api/openapi.json` and `/api/docs`, because Vercel forwards `/api/*` with the prefix intact.
   - `wind/` is the domain package. Its one front door is `decision.build_decision(today, slot, source, settings) -> DecisionView`, and callers never see what's behind it:
     - `source.py`: the `Source` protocol (`forecasts(publish_from, publish_to)`, `actuals(settlement_from, settlement_to)`).
@@ -23,11 +24,16 @@ A January 2026 simulation for a UK supplier with a wind deal. He picks "today", 
     - `models.py`: input rows (dataclasses) and the `DecisionView` output (pydantic, becoming the API schema).
     - `settings.py`: every operational value, overridable via `WIND_*` env vars.
     - `cli.py`: prints `DecisionView` JSON for a day and slot.
-    - No HTTP endpoints exist yet beyond the OpenAPI docs.
+    - `api.py`: `create_app(settings, source, clock)`; tests inject fakes for the last two.
+      - `GET /api/decision?today=YYYY-MM-DD&slot=HH:MM` returns `DecisionView` plus `fetched_at`. Success is `Cache-Control: public, max-age=300, s-maxage=31536000`.
+      - Errors are always `{"detail": "<sentence>"}` with `no-store`: 422 bad input, 404 missing publish, 502 Elexon failed (the reason is logged).
+      - `GET /api/health` probes one known publish and returns 200 `ok` or 503 `degraded`, plus an Elexon failure counter for the instance.
+      - An httpx client is opened per request, because serverless runtimes don't reliably run startup hooks.
   - Tests are in `tests/`. Agreed seams: `build_decision` (with `FakeSource`), `ElexonSource` (with httpx `MockTransport`), `scoring` (pure), and a golden test running recorded real Elexon data (`tests/fixtures/`) through both, against numbers from an independent script.
 - `apps/web`: Vite + React 19 + TypeScript.
   - It currently renders a heading only.
-  - The dev server binds `0.0.0.0:5173` and proxies `/api` to `API_PROXY_TARGET` (default `http://localhost:8000`; in compose, `http://api-dev:8000`).
+  - `src/api/` is **generated** (`@hey-api/openapi-ts`, types only). Never edit it by hand. `package.json` overrides `js-yaml` to 4.3.2 to patch an advisory in the generator's dependency.
+  - The dev server binds `0.0.0.0:5173` via the `--host` flag in `npm run dev`, not via config: Vite drops a config-file host when it restarts after a config change and proxies `/api` to `API_PROXY_TARGET` (default `http://localhost:8000`; in compose, `http://api-dev:8000`).
 - `compose.yaml`: `dev` profile with `api-dev` (uv image, `fastapi dev`) and `web-dev` (node image, `vite`). Source is bind-mounted; deps live in named volumes.
 
 ## Conventions

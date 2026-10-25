@@ -1,9 +1,4 @@
-from fastapi import FastAPI
+from wind.api import create_app
 
-# Every route lives under /api: Vercel forwards /api/* here with the prefix intact.
-app = FastAPI(
-    title="Wind day-ahead API",
-    openapi_url="/api/openapi.json",
-    docs_url="/api/docs",
-    redoc_url=None,
-)
+# Vercel and `fastapi dev` both load this module-level app (see [tool.fastapi] entrypoint).
+app = create_app()

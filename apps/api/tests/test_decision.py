@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 
 import pytest
 
-from tests.builders import FakeSource, at, metered, publish
+from tests.builders import FakeSource, at, metered, publish, slot_publishes
 from wind.decision import ForecastUnavailableError, build_decision
 from wind.models import ActualRow, ForecastRow
 from wind.settings import Settings
@@ -55,16 +55,6 @@ async def test_tomorrow_without_a_complete_publish_at_the_slot_is_an_error_not_a
 ) -> None:
     with pytest.raises(ForecastUnavailableError):
         await build_decision(date(2026, 1, 15), time(9, 30), FakeSource(forecasts), SETTINGS)
-
-
-def slot_publishes(
-    days: range, hour: int = 9, minute: int = 30, mw: int = 1000
-) -> list[ForecastRow]:
-    """The given slot's publish on each day, each spanning 21:00 the day before -> +72h."""
-    rows: list[ForecastRow] = []
-    for d in days:
-        rows += publish(at(d, hour, minute), first=at(d - 1, 21), hours=73, mw=mw)
-    return rows
 
 
 async def test_a_window_scores_each_half_hour_against_the_slot_publish_from_the_day_before() -> (
