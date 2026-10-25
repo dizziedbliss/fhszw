@@ -1,21 +1,26 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { HistoryPoint } from '../api/types.gen.ts'
-import { num, signed, ukDayTime } from '../format.ts'
-import { HistoryChart } from './HistoryChart.tsx'
+import { lean, num, signed, ukDayTime } from '../format.ts'
+import { DAY_MS } from '../simulation.ts'
+import chart from './Chart.module.css'
+import { CHART_OR_TABLE, type ChartOrTable, PENS } from './chartStyle.ts'
 import styles from './History.module.css'
+import shared from './Shared.module.css'
 import tables from './Table.module.css'
 import { ViewSwitch } from './ViewSwitch.tsx'
 
-const VIEWS = [
-  { value: 'chart', label: 'Chart' },
-  { value: 'table', label: 'Table' },
-] as const
+// Recharts is the bulk of the bundle: load it alongside the data, not in front of it.
+const HistoryChart = lazy(() => import('./HistoryChart.tsx').then((m) => ({ default: m.HistoryChart })))
 
-const DAY = 86_400_000
+const MISS_WORD = { 1: 'higher', 0: 'even', [-1]: 'lower' } as const
 
-function missWords(value: number): string {
-  const rounded = Math.round(value)
-  return rounded > 0 ? 'higher' : rounded < 0 ? 'lower' : 'even'
+/** A legend swatch drawn with the same pen as the line it labels, so the two can't drift. */
+function PenSwatch({ pen }: { pen: (typeof PENS)[keyof typeof PENS] }) {
+  return (
+    <svg viewBox="0 0 32 8" aria-hidden="true">
+      <line x1="0" y1="4" x2="32" y2="4" {...pen} />
+    </svg>
+  )
 }
 
 /** The scored half-hours behind the scorecard, for any of the scoring windows. */
@@ -30,40 +35,38 @@ export function History({
 }) {
   const lengths = windowDays.map((days) => ({ value: String(days), label: `${days} days` }))
   const [length, setLength] = useState(String(Math.max(...windowDays)))
-  const [view, setView] = useState<(typeof VIEWS)[number]['value']>('chart')
+  const [view, setView] = useState<ChartOrTable>('chart')
   const days = Number(length)
-  const cutoff = Date.parse(asOf) - days * DAY
+  const cutoff = Date.parse(asOf) - days * DAY_MS
   const shown = history.filter((p) => Date.parse(p.start_time) >= cutoff)
 
   return (
     <>
-      <h3 className={styles.title}>Forecast and actual, last {days} days</h3>
-      <div className={styles.head}>
+      <h3 className={shared.subhead}>Forecast and actual, last {days} days</h3>
+      <div className={shared.head}>
         <div className={styles.legend}>
           <span>
-            <svg viewBox="0 0 32 8" aria-hidden="true">
-              <line x1="0" y1="4" x2="32" y2="4" stroke="var(--pen-forecast)" strokeWidth="2" />
-            </svg>
+            <PenSwatch pen={PENS.forecast} />
             Forecast, published the day before
           </span>
           <span>
-            <svg viewBox="0 0 32 8" aria-hidden="true">
-              <line x1="0" y1="4" x2="32" y2="4" stroke="var(--pen-actual)" strokeWidth="2" strokeDasharray="5 3" />
-            </svg>
+            <PenSwatch pen={PENS.actual} />
             Actual, metered
           </span>
         </div>
         <div className={styles.switches}>
           <ViewSwitch label="History length" options={lengths} value={length} onChange={setLength} />
-          <ViewSwitch label="Show history as" options={VIEWS} value={view} onChange={setView} />
+          <ViewSwitch label="Show history as" options={CHART_OR_TABLE} value={view} onChange={setView} />
         </div>
       </div>
       {view === 'chart' ? (
-        <HistoryChart history={shown} days={days} />
+        <Suspense fallback={<div className={chart.waitHistory} />}>
+          <HistoryChart history={shown} days={days} />
+        </Suspense>
       ) : (
         <div className={tables.scroll}>
           <table className={tables.table}>
-            <caption className={tables.caption}>Forecast and actual, half-hour by half-hour</caption>
+            <caption className={shared.visuallyHidden}>Forecast and actual, half-hour by half-hour</caption>
             <thead>
               <tr>
                 <th scope="col">Half-hour</th>
@@ -79,7 +82,7 @@ export function History({
                   <td>{num(p.forecast_mw)}</td>
                   <td>{num(p.actual_mw)}</td>
                   <td>
-                    {signed(p.miss_mw)} <span className={styles.words}>{missWords(p.miss_mw)}</span>
+                    {signed(p.miss_mw)} <span className={styles.words}>{MISS_WORD[lean(p.miss_mw)]}</span>
                   </td>
                 </tr>
               ))}

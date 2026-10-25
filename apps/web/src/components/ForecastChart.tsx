@@ -10,14 +10,12 @@ import {
   YAxis,
 } from 'recharts'
 import type { HourForecast } from '../api/types.gen.ts'
-import { mw, num } from '../format.ts'
+import { hourLabel, mw, num } from '../format.ts'
 import { useNarrow } from '../useNarrow.ts'
 import styles from './Chart.module.css'
+import { AXIS, CURSOR, GRID, MARGIN, PENS, STEPS, Y_AXIS } from './chartStyle.ts'
 
 type Point = { hour: number; forecast: number; band: [number, number] | null }
-
-// 24 means the end of the day, not midnight at its start.
-const clock = (hour: number) => `${String(hour).padStart(2, '0')}:00`
 
 function toPoints(hours: readonly HourForecast[]): Point[] {
   const points = hours.map((h, hour) => ({
@@ -39,7 +37,7 @@ function Tip({ active, payload }: TooltipContentProps) {
   return (
     <div className={styles.tip}>
       <p className={styles.tipTitle}>
-        {clock(point.hour)} to {clock(point.hour + 1)}
+        {hourLabel(point.hour)} to {hourLabel(point.hour + 1)}
       </p>
       <p>Forecast {mw(point.forecast)}</p>
       {point.band && (
@@ -58,41 +56,27 @@ export function ForecastChart({ hours }: { hours: readonly HourForecast[] }) {
   return (
     <div className={styles.frame}>
       <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
-        <ComposedChart data={toPoints(hours)} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid fill="var(--paper)" stroke="var(--grid)" />
+        <ComposedChart data={toPoints(hours)} margin={MARGIN}>
+          <CartesianGrid {...GRID} />
           <XAxis
             dataKey="hour"
             type="number"
             domain={[0, 24]}
             ticks={ticks}
-            tickFormatter={clock}
-            stroke="var(--grid-major)"
-            tick={{ fill: 'var(--ink-2)', fontSize: 14 }}
+            tickFormatter={hourLabel}
+            {...AXIS}
           />
-          <YAxis
-            width={60}
-            tickFormatter={num}
-            stroke="var(--grid-major)"
-            tick={{ fill: 'var(--ink-2)', fontSize: 14 }}
-          />
-          <Tooltip content={Tip} cursor={{ stroke: 'var(--ink-2)', strokeDasharray: '3 3' }} />
+          <YAxis {...Y_AXIS} />
+          <Tooltip content={Tip} cursor={CURSOR} />
           <Area
             dataKey="band"
             type="stepAfter"
             stroke="none"
-            fill="var(--pen-forecast)"
+            fill={PENS.forecast.stroke}
             fillOpacity={0.16}
             isAnimationActive={false}
           />
-          <Line
-            dataKey="forecast"
-            type="stepAfter"
-            stroke="var(--pen-forecast)"
-            strokeWidth={2}
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
+          <Line dataKey="forecast" {...STEPS} {...PENS.forecast} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

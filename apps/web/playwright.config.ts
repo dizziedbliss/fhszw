@@ -7,7 +7,11 @@ const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
-  retries: 0,
+  // Every assertion waits on live Elexon (uncached in a fresh container), which can take a
+  // few seconds. The page shows its loading line meanwhile, so allow for that, not 5s.
+  expect: { timeout: 20_000 },
+  // The tests are independent and both wait on live Elexon: run them side by side.
+  fullyParallel: true,
   reporter: 'list',
   use: {
     ...devices['Desktop Chrome'],

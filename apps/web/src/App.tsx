@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react'
 import styles from './App.module.css'
+import shared from './components/Shared.module.css'
 import { Accuracy } from './components/Accuracy.tsx'
 import { Controls } from './components/Controls.tsx'
 import { History } from './components/History.tsx'
 import { Tomorrow } from './components/Tomorrow.tsx'
 import { WholeDaysTable } from './components/WholeDaysTable.tsx'
 import { dayShort, ukDateTime } from './format.ts'
-import { type Choice, GATE_CLOSES, readChoice } from './simulation.ts'
+import { type Choice, GATE_CLOSES, readChoice, toQuery } from './simulation.ts'
 import { useDecision } from './useDecision.ts'
-
-function toSearch(choice: Choice): string {
-  return `?${new URLSearchParams({ today: choice.today, slot: choice.slot }).toString()}`
-}
 
 export default function App() {
   const [choice, setChoice] = useState(() => readChoice(window.location.search))
@@ -25,7 +22,7 @@ export default function App() {
   }, [])
 
   const choose = (next: Choice) => {
-    window.history.pushState(null, '', toSearch(next))
+    window.history.pushState(null, '', `?${toQuery(next)}`)
     setChoice(next)
   }
 
@@ -71,7 +68,7 @@ export default function App() {
               // The shortest scoring window: the most recent read on the hourly miss.
               recent={[...state.data.windows].sort((a, b) => a.days - b.days)[0]}
             />
-            <section aria-labelledby="accuracy" className={styles.section}>
+            <section aria-labelledby="accuracy" className={shared.section}>
               <Accuracy windows={state.data.windows} slot={choice.slot} />
               <WholeDaysTable whole={state.data.whole_days} slot={choice.slot} />
               <History

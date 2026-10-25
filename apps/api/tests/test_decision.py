@@ -321,3 +321,20 @@ async def test_the_day_range_never_goes_below_zero_energy_and_says_when_it_was_h
 
     assert view.whole_days.tomorrow_low_mwh == 0
     assert view.whole_days.clipped_at_zero is True
+
+
+async def test_data_is_fetched_far_enough_back_for_every_window_including_whole_days() -> None:
+    # Whole days reach back 3 days, further than the 1-day scoring and band windows.
+    asked: list[date] = []
+
+    class Recording(FakeSource):
+        async def actuals(self, settlement_from: date, settlement_to: date) -> list[ActualRow]:
+            asked.append(settlement_from)
+            return await super().actuals(settlement_from, settlement_to)
+
+    settings = Settings(windows_days=(1,), band_window_days=1, whole_day_window_days=3)
+    await build_decision(
+        date(2026, 1, 15), time(9, 30), Recording(slot_publishes(range(12, 16))), settings
+    )
+
+    assert asked == [date(2026, 1, 12)]

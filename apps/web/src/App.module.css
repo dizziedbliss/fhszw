@@ -24,10 +24,6 @@
   margin: 0;
 }
 
-.section {
-  padding-bottom: var(--space-5);
-}
-
 .gate {
   margin: 0;
   color: var(--setpoint);

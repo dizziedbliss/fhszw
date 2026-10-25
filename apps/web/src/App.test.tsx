@@ -81,8 +81,14 @@ test('the back button returns to the previous choice', async () => {
   })
 })
 
-function withBand(band: DecisionResponse['band']): DecisionResponse {
-  return { ...JAN15, band, tomorrow: { ...JAN15.tomorrow, hours: JAN15.tomorrow.hours.map((h) => (band ? h : { ...h, band_low_mw: null, band_high_mw: null })) } }
+/** The Jan 15 answer with no band at all, as when there's no history to learn from. */
+const NO_BAND: DecisionResponse = {
+  ...JAN15,
+  band: null,
+  tomorrow: {
+    ...JAN15.tomorrow,
+    hours: JAN15.tomorrow.hours.map((h) => ({ ...h, band_low_mw: null, band_high_mw: null })),
+  },
 }
 
 test("tomorrow switches from chart to a table of all 24 hours with the band's edges", async () => {
@@ -117,7 +123,7 @@ test('the band says what it is, in numbers', async () => {
 })
 
 test('without enough history there is no band, and the page says so', async () => {
-  fakeApi(() => ({ status: 200, body: withBand(null) }))
+  fakeApi(() => ({ status: 200, body: NO_BAND }))
   render(<App />)
 
   expect(await screen.findByText(/No band yet/)).toBeInTheDocument()

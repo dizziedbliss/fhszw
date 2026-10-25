@@ -1,30 +1,29 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { Band, Tomorrow as TomorrowData, WholeDays, WindowMetrics } from '../api/types.gen.ts'
-import { dayLong, mw, mwh, num, signed, ukTime } from '../format.ts'
+import { dayLong, inTen, mw, mwh, num, signed, ukTime } from '../format.ts'
+import chart from './Chart.module.css'
+import { CHART_OR_TABLE, type ChartOrTable } from './chartStyle.ts'
 import { DayRange } from './DayRange.tsx'
-import { ForecastChart } from './ForecastChart.tsx'
 import { HourlyMiss } from './HourlyMiss.tsx'
+import shared from './Shared.module.css'
 import tables from './Table.module.css'
 import styles from './Tomorrow.module.css'
 import { ViewSwitch } from './ViewSwitch.tsx'
 
-const VIEWS = [
-  { value: 'chart', label: 'Chart' },
-  { value: 'table', label: 'Table' },
-] as const
+// Recharts is the bulk of the bundle: load it alongside the data, not in front of it.
+const ForecastChart = lazy(() => import('./ForecastChart.tsx').then((m) => ({ default: m.ForecastChart })))
 
 function BandCaption({ band }: { band: Band | null }) {
   if (band === null) {
     return <p className={styles.caption}>No band yet: there are no scored half-hours to learn from.</p>
   }
-  const share = Math.round((band.upper_pct - band.lower_pct) / 10)
   return (
     <p className={styles.caption}>
       <span className={styles.swatch} aria-hidden="true" />
       <span>
         Shaded: where tomorrow lands if it misses the way the last {band.window_days} days did.{' '}
-        {share} in 10 past half-hours fell inside (misses from {signed(band.lower_miss_mw)} to{' '}
-        {signed(band.upper_miss_mw)}&nbsp;MW).
+        {inTen(band.lower_pct, band.upper_pct)} past half-hours fell inside (misses from{' '}
+        {signed(band.lower_miss_mw)} to {signed(band.upper_miss_mw)}&nbsp;MW).
       </span>
     </p>
   )
@@ -41,9 +40,9 @@ export function Tomorrow({
   wholeDays: WholeDays
   recent: WindowMetrics | undefined
 }) {
-  const [view, setView] = useState<(typeof VIEWS)[number]['value']>('chart')
+  const [view, setView] = useState<ChartOrTable>('chart')
   return (
-    <section aria-labelledby="tomorrow" className={styles.section}>
+    <section aria-labelledby="tomorrow" className={shared.section}>
       <h2 id="tomorrow">{dayLong(tomorrow.delivery_day)}</h2>
       <p className={styles.summary}>
         <b>{mwh(tomorrow.total_mwh)}</b> of wind forecast across the day. Lowest hour{' '}
@@ -52,16 +51,18 @@ export function Tomorrow({
       </p>
       <DayRange whole={wholeDays} />
       <HourlyMiss window={recent} />
-      <div className={styles.head}>
+      <div className={shared.head}>
         <span className={styles.what}>Hourly forecast, MW</span>
-        <ViewSwitch label="Show tomorrow as" options={VIEWS} value={view} onChange={setView} />
+        <ViewSwitch label="Show tomorrow as" options={CHART_OR_TABLE} value={view} onChange={setView} />
       </div>
       {view === 'chart' ? (
-        <ForecastChart hours={tomorrow.hours} />
+        <Suspense fallback={<div className={chart.waitForecast} />}>
+          <ForecastChart hours={tomorrow.hours} />
+        </Suspense>
       ) : (
         <div className={tables.scroll}>
           <table className={tables.table}>
-            <caption className={tables.caption}>Tomorrow, hour by hour</caption>
+            <caption className={shared.visuallyHidden}>Tomorrow, hour by hour</caption>
             <thead>
               <tr>
                 <th scope="col">Hour</th>

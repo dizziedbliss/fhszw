@@ -17,3 +17,22 @@
 .tipTitle {
   font-weight: 700;
 }
+
+/* Room held for a chart while its code loads, so nothing jumps when it arrives. */
+.waitForecast {
+  height: 300px;
+}
+
+.waitHistory {
+  height: 280px;
+}
+
+@media (max-width: 40rem) {
+  .waitForecast {
+    height: 240px;
+  }
+
+  .waitHistory {
+    height: 220px;
+  }
+}

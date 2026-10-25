@@ -1,15 +1,13 @@
 import type { ReactNode } from 'react'
 import type { WindowMetrics } from '../api/types.gen.ts'
-import { miss, mw, num, pct } from '../format.ts'
-import { FIRST_DAY } from '../simulation.ts'
+import { miss, monthYear, mw, num, pct } from '../format.ts'
+import { dayBefore, FIRST_DAY } from '../simulation.ts'
 import styles from './Accuracy.module.css'
+import shared from './Shared.module.css'
+import tables from './Table.module.css'
 
 // The month before the simulation starts, e.g. "Dec 2025", for windows that reach back into it.
-const MONTH_BEFORE = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'UTC',
-  month: 'short',
-  year: 'numeric',
-}).format(new Date(new Date(`${FIRST_DAY}T00:00:00Z`).getTime() - 86_400_000))
+const MONTH_BEFORE = monthYear(dayBefore(FIRST_DAY))
 
 const NO_DATA = 'no data'
 
@@ -56,12 +54,12 @@ export function Accuracy({ windows, slot }: { windows: readonly WindowMetrics[];
         Each past half-hour, scored against the forecast published at {slot} the day before: the
         same kind of forecast you&rsquo;re reading now. Misses are forecast minus actual.
       </p>
-      <table className={styles.table}>
-        <caption className={styles.visuallyHidden}>How close this forecast has been</caption>
+      <table className={`${tables.table} ${styles.scorecard}`}>
+        <caption className={shared.visuallyHidden}>How close this forecast has been</caption>
         <thead>
           <tr>
             <th scope="col">
-              <span className={styles.visuallyHidden}>Measure</span>
+              <span className={shared.visuallyHidden}>Measure</span>
             </th>
             {windows.map((w) => (
               <th key={w.days} scope="col">
@@ -89,7 +87,7 @@ export function Accuracy({ windows, slot }: { windows: readonly WindowMetrics[];
         </tbody>
       </table>
       {skipped.map((w) => (
-        <p key={w.days} className={styles.note}>
+        <p key={w.days} className={shared.note}>
           {num(w.unscored_half_hours)} half-hours in the last {w.days} days were skipped: Elexon has
           no {slot} forecast from the day before them to compare with.
         </p>
